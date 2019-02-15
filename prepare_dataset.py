@@ -5,7 +5,7 @@ import argparse
 import os
 import re
 
-from config import UCF101_VIDEO_DIR_PATH, DATASET_DIR_PATH
+from config import UCF101_VIDEO_DIR_PATH
 from utils.path_utils import get_files_in_directory, get_file_name
 
 
@@ -32,15 +32,10 @@ if __name__ == "__main__":
         description='Prepare dataset to train/test video classifier.')
     parser.add_argument('-i', '--video-dir', type=str,
                         default=UCF101_VIDEO_DIR_PATH,
-                        help='The input video file.')
-    parser.add_argument('-o', '--output-dir', type=str,
-                        default="",
-                        help=DATASET_DIR_PATH)
+                        help='The video directory.')
 
     args = parser.parse_args()
     video_dir = args.video_dir
-    output_dir = args.output_dir
-
     video_paths = get_files_in_directory(video_dir)
 
     for video_path in video_paths:

@@ -1,0 +1,64 @@
+# Project files
+.pydevproject
+.project
+.settings/
+.pytest_cache
+*.idea
+*.xml
+
+# Project folders
+resources
+build
+logs
+
+# Emacs special folders
+GPATH
+GRTAGS
+GTAGS
+
+# Text editors swap and backup files
+*~
+[._]*.s[a-v][a-z]
+[._]*.sw[a-p]
+[._]s[a-v][a-z]
+[._]sw[a-p]
+\#*\#
+.\#*
+*.orig
+
+# Python intermediate files
+#   Byte-compiled / optimized files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C++ intermediate files
+#   Prerequisites
+*.d
+#   Compiled Object files
+*.o
+*.obj
+#   Precompiled Headers
+*.gch
+*.pch
+#   Compiled Dynamic libraries
+*.so
+*.dll
+#   Compiled Static libraries
+*.a
+*.lib
+#   Executables
+*.out
+#   Shell Script
+*.sh
+
+# Python virtualenv
+**/venv/
+**/venv_2.7/
+**/venv_3.6/
+
+# Visual Studio Code folders
+**/.vscode
+
+# Git files
+COMMIT_EDITMSG_ERROR

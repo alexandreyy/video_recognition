@@ -6,7 +6,7 @@ import argparse
 import os
 import re
 
-from config import VIDEO_DIR_PATH
+from config import FORGD_VIDEO_DIR_PATH
 from utils.path_utils import get_file_name, get_files_in_directory
 
 
@@ -29,7 +29,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description='Prepare dataset to train/test video classifier.')
     parser.add_argument('-i', '--video-dir', type=str,
-                        default=VIDEO_DIR_PATH,
+                        default=FORGD_VIDEO_DIR_PATH,
                         help='The video directory.')
 
     args = parser.parse_args()
@@ -40,7 +40,7 @@ if __name__ == "__main__":
         video_label = get_video_label(video_path)
 
         if video_label is not None:
-            video_dir = VIDEO_DIR_PATH + "/" + video_label
+            video_dir = FORGD_VIDEO_DIR_PATH + "/" + video_label
 
             if not os.path.exists(video_dir):
                 print("Creating directory %s" % video_dir)

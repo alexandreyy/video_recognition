@@ -1,4 +1,6 @@
 #!/usr/bin/env sh
+# Configure enviroment.
+
 # Update system.
 sudo apt-get update
 sudo apt-get upgrade

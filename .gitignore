@@ -49,8 +49,6 @@ __pycache__/
 *.lib
 #   Executables
 *.out
-#   Shell Script
-*.sh
 
 # Python virtualenv
 **/venv/

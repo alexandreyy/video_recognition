@@ -27,7 +27,7 @@ def test_generator(forgd_video_dir, backd_video_dir, split_ratio=0.8):
                           split_ratio=split_ratio)
 
 
-def data_generator(forgd_video_dir, backd_video_dir, dataset="train",
+def data_generator(forgd_video_dir, backd_video_dir, dataset="test",
                    split_ratio=0.8):
     """
     Generate sample from video directory.
@@ -37,6 +37,7 @@ def data_generator(forgd_video_dir, backd_video_dir, dataset="train",
     labels, labels_dict = get_labels(forgd_video_dir)
     data = dict()
 
+    # Add foreground videos.
     for label in labels:
         label_dir = forgd_video_dir + "/" + label
         video_paths = sorted(get_files_in_directory(label_dir))
@@ -49,6 +50,18 @@ def data_generator(forgd_video_dir, backd_video_dir, dataset="train",
             else:
                 data[label] = video_paths[split_index:]
 
+    # Add background videos.
+    video_paths = sorted(get_files_in_directory(backd_video_dir))
+    split_index = int(len(video_paths) * split_ratio)
+    label = "background"
+
+    if dataset == "train":
+        data[label] = video_paths[:split_index]
+    else:
+        data[label] = video_paths[split_index:]
+
+    labels.insert(0, "background")
+    labels_dict[label] = 0
     print(len(data[label]))
     exit(0)
 
@@ -63,7 +76,7 @@ def get_labels(video_dir):
     label_dirs = sorted(os.listdir(video_dir))
     labels_dict = dict()
 
-    i = 0
+    i = 1
     for label in label_dirs:
         labels_dict[label] = i
         i += 1

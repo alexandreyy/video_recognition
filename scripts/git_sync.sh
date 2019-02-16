@@ -1,4 +1,4 @@
-# Force git synchronization
+# Force git synchronization.
 
 git reset --hard origin/master
 git pull --rebase

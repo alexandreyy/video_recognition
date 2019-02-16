@@ -1,5 +1,5 @@
 """
-Record a video from the webcam.
+Record video from the webcam.
 """
 
 import argparse
@@ -8,7 +8,7 @@ import cv2
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description='Capture camera video or play a video file.')
+        description='Record video from the webcam .')
     parser.add_argument('-o', '--output-video-file', type=str,
                         default="output.avi",
                         help='The output video file.')
@@ -49,7 +49,7 @@ if __name__ == "__main__":
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
 
-        # Break the loop
+        # Break the loop.
         else:
             break
 

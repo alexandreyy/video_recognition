@@ -1,16 +1,12 @@
-'''
+"""
 Capture camera video or play a video file.
-'''
+"""
 
 import argparse
-
 import cv2
 
-if __name__ == "__main__":
-    """
-    Capture camera video or play a video file.
-    """
 
+if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description='Capture camera video or play a video file.')
     parser.add_argument('-i', '--input-video-file', type=str,

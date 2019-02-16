@@ -1,18 +1,20 @@
-'''
+"""
 Prepare dataset to train/test video classifier.
-'''
+"""
+
 import argparse
 import os
 import re
 
-from config import UCF101_VIDEO_DIR_PATH
-from utils.path_utils import get_files_in_directory, get_file_name
+from config import VIDEO_DIR_PATH
+from utils.path_utils import get_file_name, get_files_in_directory
 
 
 def get_video_label(video_path):
     """
     Get video label.
     """
+
     try:
         video_name = get_file_name(video_path)
         regex_result = re.compile('^v_(.*)_(.*)_(.*)').match(video_name)
@@ -24,14 +26,10 @@ def get_video_label(video_path):
 
 
 if __name__ == "__main__":
-    """
-    Prepare dataset to train/test video classifier.
-    """
-
     parser = argparse.ArgumentParser(
         description='Prepare dataset to train/test video classifier.')
     parser.add_argument('-i', '--video-dir', type=str,
-                        default=UCF101_VIDEO_DIR_PATH,
+                        default=VIDEO_DIR_PATH,
                         help='The video directory.')
 
     args = parser.parse_args()
@@ -42,7 +40,7 @@ if __name__ == "__main__":
         video_label = get_video_label(video_path)
 
         if video_label is not None:
-            video_dir = UCF101_VIDEO_DIR_PATH + "/" + video_label
+            video_dir = VIDEO_DIR_PATH + "/" + video_label
 
             if not os.path.exists(video_dir):
                 print("Creating directory %s" % video_dir)

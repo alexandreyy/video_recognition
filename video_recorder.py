@@ -3,14 +3,10 @@ Record a video from the webcam.
 """
 
 import argparse
-
 import cv2
 
-if __name__ == "__main__":
-    """
-    Record a video from the webcam.
-    """
 
+if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description='Capture camera video or play a video file.')
     parser.add_argument('-o', '--output-video-file', type=str,

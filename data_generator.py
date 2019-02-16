@@ -1,10 +1,11 @@
-'''
+"""
 Generate video samples.
-'''
+"""
+
 import argparse
 import os
 
-from config import UCF101_VIDEO_DIR_PATH
+from config import VIDEO_DIR_PATH
 from utils.path_utils import get_files_in_directory
 
 
@@ -64,14 +65,10 @@ def get_labels(video_dir):
 
 
 if __name__ == "__main__":
-    """
-    Generate video samples.
-    """
-
     parser = argparse.ArgumentParser(
         description='Generate random video samples.')
     parser.add_argument('-i', '--video-dir', type=str,
-                        default=UCF101_VIDEO_DIR_PATH,
+                        default=VIDEO_DIR_PATH,
                         help='The input video file.')
 
     args = parser.parse_args()

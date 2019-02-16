@@ -77,7 +77,7 @@ if __name__ == "__main__":
     parser.add_argument('-f', '--foreground-video-dir', type=str,
                         default=FORGD_VIDEO_DIR_PATH,
                         help='The foreground video directory.')
-    parser.add_argument('-b', '--background-dir', type=str,
+    parser.add_argument('-b', '--background-video-dir', type=str,
                         default=BACKD_VIDEO_DIR_PATH,
                         help='The background video directory.')
 

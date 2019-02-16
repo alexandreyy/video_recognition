@@ -18,6 +18,8 @@ def get_files_in_directory(dir_path, extensions=['mp4', 'avi', 'mpg']):
         if ext.lower() in extensions:
             file_paths.append(filename)
 
+    file_paths = sorted(file_paths)
+
     return file_paths
 
 

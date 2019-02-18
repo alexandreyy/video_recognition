@@ -3,7 +3,10 @@ Record video from the webcam.
 """
 
 import argparse
+
 import cv2
+
+from config import FRAMES_BY_SECOND
 
 
 if __name__ == "__main__":
@@ -12,12 +15,16 @@ if __name__ == "__main__":
     parser.add_argument('-o', '--output-video-file', type=str,
                         default="output.avi",
                         help='The output video file.')
-
+    parser.add_argument('-f', '--fps', type=str,
+                        default=FRAMES_BY_SECOND,
+                        help='The input video file.')
     args = parser.parse_args()
     output_video_file = args.output_video_file
+    fps = args.fps
 
     # Create a VideoCapture object.
     cap = cv2.VideoCapture(0)
+    cap.set(cv2.CAP_PROP_FPS, fps)
 
     # Check if camera opened successfully.
     if cap.isOpened() is False:
@@ -32,7 +39,7 @@ if __name__ == "__main__":
     # Define the codec and create VideoWriter object.
     # The output is stored in 'outpy.avi' file.
     out = cv2.VideoWriter(output_video_file,
-                          cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'), 30,
+                          cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'), fps,
                           (frame_width, frame_height))
 
     while True:

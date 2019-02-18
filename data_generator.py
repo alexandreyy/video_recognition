@@ -40,10 +40,10 @@ def validation_generator(forgd_video_dir, backd_video_dir,
     """
 
     return sample_generator(forgd_video_dir, backd_video_dir,
-                            dataset="validation",
-                            split_ratio=split_ratio, frame_size=frame_size,
-                            preload_samples=preload_samples,
-                            phase="train", fps=fps)
+                            dataset="validation", split_ratio=split_ratio,
+                            frame_size=frame_size,
+                            preload_samples=preload_samples, phase="train",
+                            fps=fps)
 
 
 def test_generator(forgd_video_dir, backd_video_dir,
@@ -74,6 +74,7 @@ def get_labeled_video(forgd_video_dir, backd_video_dir, dataset="train",
 
     # Add background videos.
     video_paths = get_files_in_directory(backd_video_dir)
+    video_paths = [v for v in video_paths if "_adjusted" not in v]
     split_index = int(len(video_paths) * split_ratio)
 
     if dataset == "train":
@@ -88,6 +89,7 @@ def get_labeled_video(forgd_video_dir, backd_video_dir, dataset="train",
     for index_label in range(1, total_labels):
         label_dir = forgd_video_dir + "/" + labels[index_label]
         video_paths = get_files_in_directory(label_dir)
+        video_paths = [v for v in video_paths if "_adjusted" not in v]
 
         if len(video_paths) > 0:
             split_index = int(len(video_paths) * split_ratio)
@@ -188,7 +190,6 @@ def sample_generator(forgd_video_dir, backd_video_dir, dataset="train",
                         count_forgd_gen_labels[select_label] += 1
                     else:
                         count_forgd_gen_labels[select_label] = 1
-
             elif select_label in labels:
                 labels.remove(select_label)
 
@@ -199,11 +200,20 @@ def frames_generator(video_path, frame_size=INPUT_FRAME_SIZE,
     Generate frame from video_path.
     """
 
-    if os.path.exists(video_path):
+    ext = os.path.basename(video_path).split(".")[-1]
+    video_adjusted_path = video_path.replace("." + ext, "_adjusted" + ".avi")
+    video_adjusted = False
+
+    if os.path.exists(video_adjusted_path):
+        video_path = video_adjusted_path
+        video_adjusted = True
+
+    if video_adjusted or os.path.exists(video_path):
         # Capture data from video.
         cap = cv2.VideoCapture(video_path)
 
         if cap.isOpened():
+            video_fps = cap.get(cv2.CAP_PROP_FPS)
             frame_index = 0
             jump_random = 0
             video_time = 0
@@ -212,27 +222,44 @@ def frames_generator(video_path, frame_size=INPUT_FRAME_SIZE,
             frames = []
 
             while True:
-                ret, frame = cap.read()
+                delta = expected_time - video_time
 
-                if not ret:
-                    break
+                if delta >= 0:
+                    ret, frame = cap.read()
 
-                if augment_data:
-                    jump_random -= 1
+                    if not ret:
+                        break
 
-                if jump_random <= 0:
-                    if len(frames) >= frame_size:
-                        frames.pop(0)
+                    if augment_data:
+                        jump_random -= 1
 
-                    frames.append(frame)
-                    frame_index += 1
+                    frame_index += 1.0
+                    video_time = frame_index / video_fps
+                else:
+                    expected_frame_index += 1.0
+                    expected_time = expected_frame_index / fps
 
-                    if frame_index >= frame_size:
-                        if augment_data:
-                            jump_random = random.randint(0, frame_size)
+                    if jump_random <= 0:
+                        if len(frames) >= frame_size:
+                            frames.pop(0)
 
-                        frame_index = 0
-                        yield np.array(frames)
+                        frames.append(frame)
+                        frame_index += 1
+
+                        # # Display the resulting frame.
+                        # print(delta)
+                        # cv2.imshow('frame', frame)
+                        #
+                        # # Press Q on keyboard to stop recording.
+                        # if cv2.waitKey(1) & 0xFF == ord('q'):
+                        #     break
+
+                        if frame_index >= frame_size:
+                            if augment_data:
+                                jump_random = random.randint(0, frame_size)
+
+                            frame_index = 0
+                            yield np.array(frames)
 
         # When everything done, release the video capture.
         cap.release()
@@ -262,10 +289,8 @@ if __name__ == "__main__":
                         help='The ratio to split the dataset in'
                              'train and test.')
     parser.add_argument('-d', '--frame-size', type=int,
-                        default=INPUT_FRAME_SIZE,
-                        help='The frame size.')
-    parser.add_argument('-p', '--fps', type=str,
-                        default=FRAMES_BY_SECOND,
+                        default=INPUT_FRAME_SIZE, help='The frame size.')
+    parser.add_argument('-p', '--fps', type=str, default=FRAMES_BY_SECOND,
                         help='The input video file.')
 
     args = parser.parse_args()
@@ -274,12 +299,13 @@ if __name__ == "__main__":
     frame_size = args.frame_size
     train_test_split_ratio = args.train_test_split_ratio
     fps = args.fps
+    labels = ["background"]
+    labels.extend(get_labels(forgd_video_dir))
 
     # Create generator.
     generator = sample_generator(forgd_video_dir, backd_video_dir,
                                  split_ratio=TRAIN_TEST_SPLIT_RATIO,
-                                 frame_size=frame_size,
-                                 phase="train", fps=fps)
+                                 frame_size=frame_size, phase="train", fps=fps)
 
     # Generate samples.
     last_sample = False
@@ -291,15 +317,14 @@ if __name__ == "__main__":
             if len(data) == 3:
                 forgd_frames, backd_frames, label = data
                 cv2.imshow('frame',
-                           np.vstack((forgd_frames[0], backd_frames[0])))
+                           np.vstack((forgd_frames[-1], backd_frames[-1])))
 
             else:
                 forgd_frames, label = data
-                cv2.imshow('frame', forgd_frames[0])
+                cv2.imshow('frame', forgd_frames[-1])
+
+            print(labels[label])
             cv2.waitKey(0)
-            print(i, label)
-            i += 1
 
         except StopIteration:
             last_sample = True
-            print("End")

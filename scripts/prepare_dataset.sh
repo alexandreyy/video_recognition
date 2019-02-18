@@ -22,4 +22,4 @@ mv $DATASET_DIR/videos $VIDEO_2_DIR
 
 # Organize dataset.
 cd $CURRENT_DIR
-python3.6 ../prepare_dataset.py -i $VIDEO_1_DIR
+python3.6 ../prepare_dataset.py -f $VIDEO_1_DIR -b $VIDEO_2_DIR

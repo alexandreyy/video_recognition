@@ -13,11 +13,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description='Capture camera video or play a video file.')
     parser.add_argument('-i', '--input-video-file', type=str,
-                        default="",
-                        help='The input video file.')
+                        default="", help='The input video file.')
     parser.add_argument('-f', '--fps', type=str,
-                        default=FRAMES_BY_SECOND,
-                        help='The input video file.')
+                        default=FRAMES_BY_SECOND, help='The input video file.')
 
     args = parser.parse_args()
     source_video = args.input_video_file

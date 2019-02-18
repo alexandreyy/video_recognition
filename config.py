@@ -4,14 +4,20 @@ Project settings.
 
 import os
 from pathlib import Path
+from multiprocessing import cpu_count
+
+# =============================================================================
+# Project parameters.
+
+NUM_PROCESS = cpu_count() - 2
 
 # =============================================================================
 # Dataset parameters.
 
 RESOURCES_DIR = os.path.dirname(os.path.realpath(__file__)) + "/resources"
 DATASET_DIR_PATH = str(Path.home()) + "/Datasets/UCF101"
-FORGD_VIDEO_DIR_PATH = str(Path.home()) + "/Datasets/UCF101/videos_foreground"
-BACKD_VIDEO_DIR_PATH = str(Path.home()) + "/Datasets/UCF101/videos_background"
+FORGD_VIDEO_DIR_PATH = DATASET_DIR_PATH + "/videos_foreground"
+BACKD_VIDEO_DIR_PATH = DATASET_DIR_PATH + "/videos_background"
 
 # =============================================================================
 # Data generation parameters.

@@ -106,13 +106,8 @@ def sample_generator(forgd_video_dir, backd_video_dir, dataset="train",
     Generate sample from video directory.
     """
 
-    if phase == "train":
-        paths, labels = get_labeled_video(forgd_video_dir, backd_video_dir,
-                                          dataset, split_ratio)
-    else:
-        paths, labels = get_labeled_video(forgd_video_dir, backd_video_dir,
-                                          dataset, split_ratio=1.0)
-
+    paths, labels = get_labeled_video(forgd_video_dir, backd_video_dir,
+                                      dataset, split_ratio)
     total_labels = len(labels)
     labels = []
     backd_gens = []
@@ -285,13 +280,13 @@ if __name__ == "__main__":
             data = next(generator)
             if len(data) == 3:
                 forgd_frames, backd_frames, label = data
-                cv2.imshow('frame',
-                           np.vstack((forgd_frames[0], backd_frames[0])))
+#                 cv2.imshow('frame',
+#                            np.vstack((forgd_frames[0], backd_frames[0])))
 
             else:
                 forgd_frames, label = data
-                cv2.imshow('frame', forgd_frames[0])
-            cv2.waitKey(0)
+#                 cv2.imshow('frame', forgd_frames[0])
+#             cv2.waitKey(0)
             print(i)
             i += 1
 

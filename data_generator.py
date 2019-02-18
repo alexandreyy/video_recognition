@@ -164,10 +164,11 @@ def sample_generator(forgd_video_dir, backd_video_dir, dataset="train",
                     yield forgd_frames, select_gen[0]
             except StopIteration:
                 forgd_gens.remove(select_gen)
-                count_forgd_gen_labels[select_gen[0]] -= 1
 
                 if len(paths[select_gen[0]]) == 0:
                     if augment_data:
+                        count_forgd_gen_labels[select_gen[0]] -= 1
+
                         if count_forgd_gen_labels[select_gen[0]] <= 0:
                             return
                     elif select_gen[0] in labels:
@@ -183,10 +184,12 @@ def sample_generator(forgd_video_dir, backd_video_dir, dataset="train",
                                    frames_generator(video_path,
                                                     frame_size,
                                                     augment_data)))
-                if select_label in count_forgd_gen_labels.keys():
-                    count_forgd_gen_labels[select_label] += 1
-                else:
-                    count_forgd_gen_labels[select_label] = 1
+
+                if augment_data:
+                    if select_label in count_forgd_gen_labels.keys():
+                        count_forgd_gen_labels[select_label] += 1
+                    else:
+                        count_forgd_gen_labels[select_label] = 1
 
             elif select_label in labels:
                 labels.remove(select_label)
@@ -282,13 +285,13 @@ if __name__ == "__main__":
             data = next(generator)
             if len(data) == 3:
                 forgd_frames, backd_frames, label = data
-#                 cv2.imshow('frame',
-#                            np.vstack((forgd_frames[0], backd_frames[0])))
+                cv2.imshow('frame',
+                           np.vstack((forgd_frames[0], backd_frames[0])))
 
             else:
                 forgd_frames, label = data
-#                 cv2.imshow('frame', forgd_frames[0])
-#             cv2.waitKey(0)
+                cv2.imshow('frame', forgd_frames[0])
+            cv2.waitKey(0)
             print(i)
             i += 1
 

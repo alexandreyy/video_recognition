@@ -10,15 +10,15 @@ export VIDEO_1_DIR="$DATASET_DIR/videos_foreground"
 export VIDEO_2_DIR="$DATASET_DIR/videos_background"
 
 # Download dataset 1.
-cd $DATASET_DIR
-wget $DATASET_1_URI
-mkdir -p $VIDEO_1_DIR
-rar e UCF101.rar $VIDEO_1_DIR
+#cd $DATASET_DIR
+#wget $DATASET_1_URI
+#mkdir -p $VIDEO_1_DIR
+#rar e UCF101.rar $VIDEO_1_DIR
  
 # Download dataset 2.
-wget $DATASET_2_URI
-unzip TH14_background_set_mp4.zip
-mv $DATASET_DIR/videos $VIDEO_2_DIR
+#wget $DATASET_2_URI
+#unzip TH14_background_set_mp4.zip
+#mv $DATASET_DIR/videos $VIDEO_2_DIR
 
 # Organize dataset.
 cd $CURRENT_DIR

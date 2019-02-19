@@ -16,7 +16,8 @@ def get_files_in_directory(dir_path, extensions=['mp4', 'avi', 'mpg']):
         ext = os.path.basename(filename).split(".")[-1]
 
         if ext.lower() in extensions:
-            file_paths.append(filename)
+            if "_adjusted" not in filename:
+                file_paths.append(filename)
 
     file_paths = sorted(file_paths)
 

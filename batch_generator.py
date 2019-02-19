@@ -6,17 +6,17 @@ import argparse
 
 import cv2
 
-from config import (BACKD_VIDEO_DIR_PATH, BATCH_SIZE, FORGD_VIDEO_DIR_PATH,
-                    FRAMES_BY_SECOND, INPUT_FRAME_SIZE, INPUT_VIDEO_HEIGHT,
-                    INPUT_VIDEO_WIDTH, PRELOAD_SAMPLES, TRAIN_TEST_SPLIT_RATIO)
+from config import (BACKD_VIDEO_DIR_PATH, BATCH_SIZE, CNN_FRAME_SIZE,
+                    CNN_VIDEO_HEIGHT, CNN_VIDEO_WIDTH, FORGD_VIDEO_DIR_PATH,
+                    FRAMES_BY_SECOND, PRELOAD_SAMPLES, TRAIN_TEST_SPLIT_RATIO)
 from data_generator import get_labels, sample_generator
 import numpy as np
 
 
 def batch_generator(forgd_video_dir, backd_video_dir, batch_size=BATCH_SIZE,
-                    width=INPUT_VIDEO_WIDTH, height=INPUT_VIDEO_HEIGHT,
+                    width=CNN_VIDEO_WIDTH, height=CNN_VIDEO_HEIGHT,
                     dataset="train", split_ratio=TRAIN_TEST_SPLIT_RATIO,
-                    frame_size=INPUT_FRAME_SIZE,
+                    frame_size=CNN_FRAME_SIZE,
                     preload_samples=PRELOAD_SAMPLES,
                     phase="train", fps=FRAMES_BY_SECOND):
     """
@@ -78,14 +78,14 @@ if __name__ == "__main__":
                         help='The ratio to split the dataset in'
                              'train and test.')
     parser.add_argument('-d', '--frame-size', type=int,
-                        default=INPUT_FRAME_SIZE, help='The frame size.')
+                        default=CNN_FRAME_SIZE, help='The frame size.')
     parser.add_argument('-p', '--fps', type=int, default=FRAMES_BY_SECOND,
                         help='The input video file.')
     parser.add_argument('-a', '--batch-size', type=int, default=BATCH_SIZE,
                         help='Size of the batch.')
-    parser.add_argument('-w', '--width', type=int, default=INPUT_VIDEO_WIDTH,
+    parser.add_argument('-w', '--width', type=int, default=CNN_VIDEO_WIDTH,
                         help='The video width.')
-    parser.add_argument('-e', '--height', type=int, default=INPUT_VIDEO_HEIGHT,
+    parser.add_argument('-e', '--height', type=int, default=CNN_VIDEO_HEIGHT,
                         help='The video height.')
 
     args = parser.parse_args()
@@ -120,17 +120,23 @@ if __name__ == "__main__":
                 forgd_frames = batch_forgd[-1]
                 backd_frames = batch_backd[-1]
                 label = batch_labels[-1]
-                cv2.imshow('frame',
-                           np.vstack((forgd_frames[-1], backd_frames[-1])))
+                print(labels[1 + np.argmax(label[1:])])
 
+                for i in range(forgd_frames.shape[0]):
+                    forgd_frame = forgd_frames[i]
+                    backd_frame = backd_frames[i]
+                    cv2.imshow('frame',
+                               np.vstack((forgd_frame, backd_frame)))
+                    cv2.waitKey(0)
             else:
                 batch_forgd, batch_labels = data
                 forgd_frames = batch_forgd[-1]
                 label = batch_labels[-1]
-                cv2.imshow('frame', forgd_frames[-1])
+                print(labels[np.argmax(label)])
 
-            print(labels[np.argmax(label)])
-            cv2.waitKey(0)
-
+                for i in range(forgd_frames.shape[0]):
+                    forgd_frame = forgd_frames[i]
+                    cv2.imshow('frame', forgd_frame)
+                    cv2.waitKey(0)
         except StopIteration:
             last_batch = True

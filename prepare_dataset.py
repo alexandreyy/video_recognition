@@ -9,7 +9,8 @@ from multiprocessing import Pool
 import cv2
 
 from config import (BACKD_VIDEO_DIR_PATH, FORGD_VIDEO_DIR_PATH,
-                    INPUT_VIDEO_HEIGHT, INPUT_VIDEO_WIDTH, NUM_PROCESS)
+                    PREPROCESS_VIDEO_HEIGHT, PREPROCESS_VIDEO_WIDTH,
+                    NUM_PROCESS)
 from utils.path_utils import get_file_name, get_files_in_directory
 
 
@@ -28,8 +29,8 @@ def get_video_label(video_path):
     return label
 
 
-def adjust_frame_size(frame, width=INPUT_VIDEO_WIDTH,
-                      height=INPUT_VIDEO_HEIGHT):
+def adjust_frame_size(frame, width=PREPROCESS_VIDEO_WIDTH,
+                      height=PREPROCESS_VIDEO_HEIGHT):
     """
     Adjust frame size.
     """
@@ -56,8 +57,8 @@ def adjust_frame_size(frame, width=INPUT_VIDEO_WIDTH,
     return frame
 
 
-def adjust_video_size(input_path, output_path, width=INPUT_VIDEO_WIDTH,
-                      height=INPUT_VIDEO_HEIGHT):
+def adjust_video_size(input_path, output_path, width=PREPROCESS_VIDEO_WIDTH,
+                      height=PREPROCESS_VIDEO_HEIGHT):
     """
     Adjust frames to fit width and height.
     """
@@ -105,9 +106,11 @@ if __name__ == "__main__":
     parser.add_argument('-b', '--background-video-dir', type=str,
                         default=BACKD_VIDEO_DIR_PATH,
                         help='The background video directory.')
-    parser.add_argument('-w', '--width', type=int, default=INPUT_VIDEO_WIDTH,
+    parser.add_argument('-w', '--width', type=int,
+                        default=PREPROCESS_VIDEO_WIDTH,
                         help='The video width.')
-    parser.add_argument('-e', '--height', type=int, default=INPUT_VIDEO_HEIGHT,
+    parser.add_argument('-e', '--height', type=int,
+                        default=PREPROCESS_VIDEO_HEIGHT,
                         help='The video height.')
 
     args = parser.parse_args()

@@ -14,7 +14,7 @@ if __name__ == "__main__":
         description='Capture camera video or play a video file.')
     parser.add_argument('-i', '--input-video-file', type=str,
                         default="", help='The input video file.')
-    parser.add_argument('-f', '--fps', type=str,
+    parser.add_argument('-f', '--fps', type=int,
                         default=FRAMES_BY_SECOND, help='The input video file.')
 
     args = parser.parse_args()

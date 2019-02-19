@@ -105,9 +105,9 @@ if __name__ == "__main__":
     parser.add_argument('-b', '--background-video-dir', type=str,
                         default=BACKD_VIDEO_DIR_PATH,
                         help='The background video directory.')
-    parser.add_argument('-w', '--width', type=str, default=INPUT_VIDEO_WIDTH,
+    parser.add_argument('-w', '--width', type=int, default=INPUT_VIDEO_WIDTH,
                         help='The video width.')
-    parser.add_argument('-e', '--height', type=str, default=INPUT_VIDEO_HEIGHT,
+    parser.add_argument('-e', '--height', type=int, default=INPUT_VIDEO_HEIGHT,
                         help='The video height.')
 
     args = parser.parse_args()

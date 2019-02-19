@@ -158,10 +158,14 @@ def sample_generator(forgd_video_dir, backd_video_dir, dataset="train",
             try:
                 if augment_data:
                     forgd_frames = next(select_gen[1])
-                    yield forgd_frames, backd_frames, select_gen[0]
+                    sample_label = np.zeros([1, len(paths)], dtype=np.uint8)
+                    sample_label[0, select_gen[0]] = 1
+                    yield forgd_frames, backd_frames, sample_label
                 else:
                     forgd_frames = next(select_gen[1])
-                    yield forgd_frames, select_gen[0]
+                    sample_label = np.zeros([1, len(paths)], dtype=np.uint8)
+                    sample_label[0, select_gen[0]] = 1
+                    yield forgd_frames, sample_label
             except StopIteration:
                 forgd_gens.remove(select_gen)
 
@@ -215,6 +219,7 @@ def frames_generator(video_path, frame_size=INPUT_FRAME_SIZE,
         if cap.isOpened():
             video_fps = cap.get(cv2.CAP_PROP_FPS)
             frame_index = 0
+            video_index = 0
             jump_random = 0
             video_time = 0
             expected_frame_index = 0
@@ -233,8 +238,8 @@ def frames_generator(video_path, frame_size=INPUT_FRAME_SIZE,
                     if augment_data:
                         jump_random -= 1
 
-                    frame_index += 1.0
-                    video_time = frame_index / video_fps
+                    video_index += 1.0
+                    video_time = video_index / video_fps
                 else:
                     expected_frame_index += 1.0
                     expected_time = expected_frame_index / fps
@@ -290,7 +295,7 @@ if __name__ == "__main__":
                              'train and test.')
     parser.add_argument('-d', '--frame-size', type=int,
                         default=INPUT_FRAME_SIZE, help='The frame size.')
-    parser.add_argument('-p', '--fps', type=str, default=FRAMES_BY_SECOND,
+    parser.add_argument('-p', '--fps', type=int, default=FRAMES_BY_SECOND,
                         help='The input video file.')
 
     args = parser.parse_args()
@@ -304,7 +309,7 @@ if __name__ == "__main__":
 
     # Create generator.
     generator = sample_generator(forgd_video_dir, backd_video_dir,
-                                 split_ratio=TRAIN_TEST_SPLIT_RATIO,
+                                 split_ratio=train_test_split_ratio,
                                  frame_size=frame_size, phase="train", fps=fps)
 
     # Generate samples.
@@ -323,7 +328,7 @@ if __name__ == "__main__":
                 forgd_frames, label = data
                 cv2.imshow('frame', forgd_frames[-1])
 
-            print(labels[label])
+            print(labels[np.argmax(label)])
             cv2.waitKey(0)
 
         except StopIteration:

@@ -50,9 +50,9 @@ class VideoRecognitionCNN:
                                     w_shape[0] * w_shape[4]) + 0.5)
 
         if down_sampling:
-            strides = [1, 2, 2, 1, 1]
+            strides = [1, 2, 2, w_shape[3], 1]
         else:
-            strides = [1, 1, 1, 1, 1]
+            strides = [1, 1, 1, w_shape[3], 1]
 
         name = name + "_1"
         with tf.variable_scope(name):
@@ -65,7 +65,7 @@ class VideoRecognitionCNN:
         with tf.variable_scope(name):
             conv_2 = self.conv3d(name, conv_1,
                                  [3, 1, 1, m, w_shape[4]],
-                                 strides=[1, 1, 1, 1, 1])
+                                 strides=[1, 1, 1, m, 1])
             conv_2 = tf.nn.relu(conv_2)
 
         return conv_2
@@ -80,26 +80,26 @@ class VideoRecognitionCNN:
 
         name = name + "_1"
         with tf.variable_scope(name):
-            conv_1 = self.r2_1d(name, x, [3, 3, 3, in_channels, in_channels],
+            conv_1 = self.r2_1d(name, x, [3, 3, 3, in_channels, out_channels],
                                 down_sampling=down_sampling)
             conv_1 = tf.nn.relu(conv_1)
 
         name = name + "_2"
         with tf.variable_scope(name):
             conv_2 = self.r2_1d(name, conv_1,
-                                [3, 3, 3, in_channels, out_channels])
+                                [3, 3, 3, out_channels, out_channels])
 
         if (in_channels != out_channels) or down_sampling:
             name = name + "_shortcut"
 
             if down_sampling:
-                strides = [1, 2, 2, 1, 1]
+                strides = [1, 2, 2, in_channels, 1]
             else:
-                strides = [1, 1, 1, 1, 1]
+                strides = [1, 1, 1, in_channels, 1]
 
             with tf.variable_scope(name):
                 previous_layer = self.conv3d(
-                    name, x, [1, 1, 1, 1, out_channels],
+                    name, x, [1, 1, 1, in_channels, out_channels],
                     strides=strides)
 
         name = name + "_out"
@@ -219,9 +219,9 @@ class VideoRecognitionCNN:
             name = "fc"
             with tf.variable_scope(name):
                 conv_2x3 = self.maxpool3d(conv_2x3, t=16, k=16, c=1)
-                conv_2x3 = tf.reshape(conv_2x3, [-1, 6272])
+                conv_2x3 = tf.reshape(conv_2x3, [-1, 896])
                 layer_2_fc = self.fc(name, conv_2x3,
-                                     [6272, self.label_size])
+                                     [896, self.label_size])
 
             name = "output_action"
             with tf.variable_scope(name):

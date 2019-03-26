@@ -2,7 +2,6 @@
 Read and write data from/to tfrecord.
 """
 
-import numpy as np
 import tensorflow as tf
 
 from config import CNN_FRAME_SIZE, CNN_VIDEO_HEIGHT, CNN_VIDEO_WIDTH
@@ -35,7 +34,7 @@ class DataRecord:
         self.height = height
         self.width = width
         self.channels = 3
-        self.phase = "train"
+        self.phase = phase
         self.batch_size = batch_size
 
     def open(self, tfrecord_path="", mode="w"):
@@ -144,9 +143,9 @@ class DataRecord:
 
         if self.phase == "train":
             dataset = self.reader.map(parse_data_train)
-        else: 
+        else:
             dataset = self.reader.map(parse_data_test)
-        
+
         dataset = dataset.repeat()
         dataset = dataset.shuffle(10000)
         dataset = dataset.batch(self.batch_size)

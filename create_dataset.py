@@ -32,7 +32,7 @@ def create_dataset(tfrecord_path, forgd_video_dir, backd_video_dir,
     # Create data record.
     tfrecord_path = tfrecord_path.replace(".tfrecord", "_%s.tfrecord" % phase)
     data_record = DataRecord(frame_size, height, width)
-    data_record.open(tfrecord_path)
+    data_record.open(tfrecord_path, mode="w")
 
     # Create generator.
     generator = sample_generator(forgd_video_dir, backd_video_dir,

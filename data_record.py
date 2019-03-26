@@ -30,11 +30,13 @@ class DataRecord:
     """
 
     def __init__(self, frame_size=CNN_FRAME_SIZE, height=CNN_VIDEO_HEIGHT,
-                 width=CNN_VIDEO_WIDTH):
+                 width=CNN_VIDEO_WIDTH, phase="train", batch_size=4):
         self.frame_size = frame_size
         self.height = height
         self.width = width
         self.channels = 3
+        self.phase = "train"
+        self.batch_size = batch_size
 
     def open(self, tfrecord_path="", mode="w"):
         """
@@ -47,9 +49,10 @@ class DataRecord:
             self.tfrecord_path = tfrecord_path
 
         if mode == "w":
-            self.writer = tf.python_io.TFRecordWriter(path=self.tfrecord_path)
+            self.writer = tf.python_io.TFRecordWriter(self.tfrecord_path)
         else:
-            return
+            self.reader = tf.data.TFRecordDataset(self.tfrecord_path)
+            return self.decode()
 
     def close(self):
         """
@@ -98,32 +101,53 @@ class DataRecord:
 
             self.writer.write(example.SerializeToString())
 
-    def decode_train(self, string_record):
+    def decode(self):
         """
         Decode tfrecord data.
         """
 
-        example = tf.train.Example()
-        example.ParseFromString(string_record)
-        forgd_frames = (
-            example.features.feature['forgd_frames'].bytes_list.value[0])
-        backd_frames = (
-            example.features.feature['backd_frames'].bytes_list.value[0])
-        label = (
-            example.features.feature['label'].bytes_list.value[0])
-        seg = np.fromstring(seg_string, dtype=np.uint8)
-        seg = seg.reshape(
-            (self.image_patch_size, self.image_patch_size, 1))
-        label = np.fromstring(label_string, dtype=np.uint8)
-        label = label.reshape(
-            (self.image_patch_size, self.image_patch_size, 1))
-
-        if return_weld_img:
-            img_string = (
-                example.features.feature['img'].bytes_list.value[0])
-            img = np.fromstring(img_string, dtype=np.uint8)
-            img = img.reshape(
-                (self.image_patch_size, self.image_patch_size, 1))
-            return seg, label, img
+        if self.phase == "train":
+            features = {
+                'forgd_frames': tf.FixedLenSequenceFeature([], tf.string),
+                'backd_frames': tf.FixedLenSequenceFeature([], tf.string),
+                'label': tf.FixedLenFeature([], tf.string)}
         else:
-            return seg, label
+            features = {
+                'forgd_frames': tf.FixedLenSequenceFeature([], tf.string),
+                'label': tf.FixedLenFeature([], tf.string)}
+
+        def parse_data_train(example):
+            """
+            Parse train tfrecord data.
+            """
+
+            parsed_example = tf.parse_single_example(example, features)
+
+            forgd_frames = tf.image.decode_jpeg(
+                parsed_example['forgd_frames'])
+            backd_frames = tf.image.decode_jpeg(
+                parsed_example['backd_frames'])
+            label = tf.cast(parsed_example['label'], tf.int8)
+            return forgd_frames, backd_frames, label
+
+        def parse_data_test(example):
+            """
+            Parse test/validation tfrecord data.
+            """
+
+            parsed_example = tf.parse_single_example(example, features)
+
+            forgd_frames = tf.image.decode_jpeg(
+                parsed_example['forgd_frames'])
+            label = tf.cast(parsed_example['label'], tf.int8)
+            return forgd_frames, label
+
+        if self.phase == "train":
+            dataset = self.reader.map(parse_data_train)
+        else: 
+            dataset = self.reader.map(parse_data_test)
+        
+        dataset = dataset.repeat()
+        dataset = dataset.shuffle(10000)
+        dataset = dataset.batch(self.batch_size)
+        return dataset

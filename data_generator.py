@@ -177,7 +177,7 @@ def sample_generator(forgd_video_dir, backd_video_dir, dataset="train",
                     if select_gen[0] != 0:
                         sample_label[0] = 1
                         sample_label[select_gen[0]] = 1
-                    
+
                     yield forgd_frames, sample_label
             except StopIteration:
                 forgd_gens.remove(select_gen)

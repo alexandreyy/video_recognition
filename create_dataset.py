@@ -35,7 +35,14 @@ def create_dataset(tfrecord_path, forgd_video_dir, backd_video_dir,
     data_record.open(tfrecord_path, mode="w")
 
     # Create generator.
+    if phase == "validation":
+        dataset = phase
+        phase = "train"
+    else:
+        dataset = phase
+
     generator = sample_generator(forgd_video_dir, backd_video_dir,
+                                 dataset=dataset,
                                  split_ratio=split_ratio,
                                  frame_size=frame_size, width=width,
                                  height=height, phase=phase, fps=fps,

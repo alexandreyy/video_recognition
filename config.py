@@ -31,6 +31,7 @@ CNN_VIDEO_HEIGHT = 112
 PRELOAD_SAMPLES = 50
 FRAMES_BY_SECOND = 30
 BATCH_SIZE = 4
+MAX_SAMPLES_BY_VIDEO = 4
 
 # =============================================================================
 # CNN parameters.

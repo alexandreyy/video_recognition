@@ -3,15 +3,16 @@ Generate video samples.
 """
 
 import argparse
-import cv2
 import os
 import random
 
+import cv2
 import numpy as np
 
 from config import (BACKD_VIDEO_DIR_PATH, CNN_FRAME_SIZE, CNN_VIDEO_HEIGHT,
                     CNN_VIDEO_WIDTH, FORGD_VIDEO_DIR_PATH, FRAMES_BY_SECOND,
-                    PRELOAD_SAMPLES, TRAIN_TEST_SPLIT_RATIO)
+                    MAX_SAMPLES_BY_VIDEO, PRELOAD_SAMPLES,
+                    TRAIN_TEST_SPLIT_RATIO)
 from utils.path_utils import get_files_in_directory
 
 
@@ -19,7 +20,8 @@ def train_generator(forgd_video_dir, backd_video_dir,
                     split_ratio=TRAIN_TEST_SPLIT_RATIO,
                     frame_size=CNN_FRAME_SIZE, width=CNN_VIDEO_WIDTH,
                     height=CNN_VIDEO_HEIGHT, preload_samples=PRELOAD_SAMPLES,
-                    fps=FRAMES_BY_SECOND):
+                    fps=FRAMES_BY_SECOND,
+                    max_samples_by_video=MAX_SAMPLES_BY_VIDEO):
     """
     Generate sample from train dataset.
     """
@@ -28,7 +30,8 @@ def train_generator(forgd_video_dir, backd_video_dir,
                             split_ratio=split_ratio, frame_size=frame_size,
                             width=width, height=height,
                             preload_samples=preload_samples,
-                            phase="train", fps=fps)
+                            phase="train", fps=fps,
+                            max_samples_by_video=max_samples_by_video)
 
 
 def validation_generator(forgd_video_dir, backd_video_dir,
@@ -36,7 +39,8 @@ def validation_generator(forgd_video_dir, backd_video_dir,
                          frame_size=CNN_FRAME_SIZE, width=CNN_VIDEO_WIDTH,
                          height=CNN_VIDEO_HEIGHT,
                          preload_samples=PRELOAD_SAMPLES,
-                         fps=FRAMES_BY_SECOND):
+                         fps=FRAMES_BY_SECOND,
+                         max_samples_by_video=MAX_SAMPLES_BY_VIDEO):
     """
     Generate sample from validation dataset.
     """
@@ -45,14 +49,15 @@ def validation_generator(forgd_video_dir, backd_video_dir,
                             dataset="validation", split_ratio=split_ratio,
                             frame_size=frame_size, width=width, height=height,
                             preload_samples=preload_samples, phase="train",
-                            fps=fps)
+                            fps=fps, max_samples_by_video=max_samples_by_video)
 
 
 def test_generator(forgd_video_dir, backd_video_dir,
                    split_ratio=TRAIN_TEST_SPLIT_RATIO,
                    frame_size=CNN_FRAME_SIZE, width=CNN_VIDEO_WIDTH,
                    height=CNN_VIDEO_HEIGHT, preload_samples=PRELOAD_SAMPLES,
-                   fps=FRAMES_BY_SECOND):
+                   fps=FRAMES_BY_SECOND,
+                   max_samples_by_video=MAX_SAMPLES_BY_VIDEO):
     """
     Generate sample from test dataset.
     """
@@ -62,7 +67,8 @@ def test_generator(forgd_video_dir, backd_video_dir,
                             split_ratio=split_ratio, frame_size=frame_size,
                             width=width, height=height,
                             preload_samples=preload_samples,
-                            phase="test", fps=fps)
+                            phase="test", fps=fps,
+                            max_samples_by_video=max_samples_by_video)
 
 
 def get_labeled_video(forgd_video_dir, backd_video_dir, dataset="train",
@@ -107,7 +113,8 @@ def sample_generator(forgd_video_dir, backd_video_dir, dataset="train",
                      split_ratio=TRAIN_TEST_SPLIT_RATIO,
                      frame_size=CNN_FRAME_SIZE, width=CNN_VIDEO_WIDTH,
                      height=CNN_VIDEO_HEIGHT, preload_samples=PRELOAD_SAMPLES,
-                     phase="train", fps=FRAMES_BY_SECOND):
+                     phase="train", fps=FRAMES_BY_SECOND,
+                     max_samples_by_video=MAX_SAMPLES_BY_VIDEO):
     """
     Generate sample from video directory.
     """
@@ -133,7 +140,8 @@ def sample_generator(forgd_video_dir, backd_video_dir, dataset="train",
                             0, len(paths[0]) - 1)]
                         backd_gens.append(
                             frames_generator(video_path, frame_size,
-                                             width, height, augment_data, fps))
+                                             width, height, augment_data, fps,
+                                             max_samples_by_video))
             else:
                 labels.append(i)
 
@@ -149,10 +157,9 @@ def sample_generator(forgd_video_dir, backd_video_dir, dataset="train",
                     backd_frames = None
                     video_path = paths[0][random.randint(0,
                                                          len(paths[0]) - 1)]
-                    backd_gens[index_gen] = frames_generator(video_path,
-                                                             frame_size, width,
-                                                             height,
-                                                             augment_data, fps)
+                    backd_gens[index_gen] = frames_generator(
+                        video_path, frame_size, width, height, augment_data,
+                        fps, max_samples_by_video)
 
         if len(forgd_gens) > 0:
             select_gen = random.choice(forgd_gens)
@@ -191,7 +198,8 @@ def sample_generator(forgd_video_dir, backd_video_dir, dataset="train",
                                    frames_generator(video_path,
                                                     frame_size, width,
                                                     height, augment_data,
-                                                    fps)))
+                                                    fps,
+                                                    max_samples_by_video)))
 
                 if augment_data:
                     if select_label in count_forgd_gen_labels.keys():
@@ -204,7 +212,8 @@ def sample_generator(forgd_video_dir, backd_video_dir, dataset="train",
 
 def frames_generator(video_path, frame_size=CNN_FRAME_SIZE,
                      width=CNN_VIDEO_WIDTH, height=CNN_VIDEO_HEIGHT,
-                     augment_data=True, fps=FRAMES_BY_SECOND):
+                     augment_data=True, fps=FRAMES_BY_SECOND,
+                     max_samples_by_video=MAX_SAMPLES_BY_VIDEO):
     """
     Generate frame from video_path.
     """
@@ -212,6 +221,7 @@ def frames_generator(video_path, frame_size=CNN_FRAME_SIZE,
     ext = os.path.basename(video_path).split(".")[-1]
     video_adjusted_path = video_path.replace("." + ext, "_adjusted" + ".avi")
     video_adjusted = False
+    samples_by_video = 0
 
     if os.path.exists(video_adjusted_path):
         video_path = video_adjusted_path
@@ -278,11 +288,16 @@ def frames_generator(video_path, frame_size=CNN_FRAME_SIZE,
 
                         if frame_index >= frame_size:
                             if augment_data:
-                                jump_random = random.randint(0, frame_size)
+                                jump_random = random.randint(
+                                    0, frame_size * 2)
 
                             frame_index = 0
                             np_frames = np.array(frames)
                             yield np_frames
+                            samples_by_video += 1
+
+                            if samples_by_video >= max_samples_by_video:
+                                break
 
                             start_y = random.randint(0, frame_height - height)
                             finish_y = start_y + height
@@ -324,10 +339,14 @@ if __name__ == "__main__":
                         help='The video height.')
     parser.add_argument('-p', '--fps', type=int, default=FRAMES_BY_SECOND,
                         help='The input video file.')
+    parser.add_argument('-m', '--max_samples_by_video', type=int,
+                        default=MAX_SAMPLES_BY_VIDEO,
+                        help='The input video file.')
 
     args = parser.parse_args()
     forgd_video_dir = args.foreground_video_dir
     backd_video_dir = args.background_video_dir
+    max_samples_by_video = args.max_samples_by_video
     frame_size = args.frame_size
     height = args.height
     width = args.width
@@ -340,7 +359,8 @@ if __name__ == "__main__":
     generator = sample_generator(forgd_video_dir, backd_video_dir,
                                  split_ratio=train_test_split_ratio,
                                  frame_size=frame_size, width=width,
-                                 height=height, phase="train", fps=fps)
+                                 height=height, phase="train", fps=fps,
+                                 max_samples_by_video=max_samples_by_video)
 
     # Generate samples.
     last_sample = False

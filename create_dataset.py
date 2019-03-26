@@ -3,18 +3,13 @@ Create tfrecord database.
 """
 
 import argparse
-import os
-
-import cv2
-import numpy as np
 
 from config import (BACKD_VIDEO_DIR_PATH, CNN_FRAME_SIZE, CNN_VIDEO_HEIGHT,
                     CNN_VIDEO_WIDTH, FORGD_VIDEO_DIR_PATH, FRAMES_BY_SECOND,
-                    MAX_SAMPLES_BY_VIDEO, PRELOAD_SAMPLES, RESOURCES_DIR,
+                    MAX_SAMPLES_BY_VIDEO, RESOURCES_DIR,
                     TRAIN_TEST_SPLIT_RATIO)
 from data_generator import sample_generator
 from data_record import DataRecord
-from utils.path_utils import get_files_in_directory
 
 
 def create_dataset(tfrecord_path, forgd_video_dir, backd_video_dir,
@@ -41,7 +36,7 @@ def create_dataset(tfrecord_path, forgd_video_dir, backd_video_dir,
 
     # Create generator.
     generator = sample_generator(forgd_video_dir, backd_video_dir,
-                                 split_ratio=train_test_split_ratio,
+                                 split_ratio=split_ratio,
                                  frame_size=frame_size, width=width,
                                  height=height, phase=phase, fps=fps,
                                  max_samples_by_video=max_samples_by_video)

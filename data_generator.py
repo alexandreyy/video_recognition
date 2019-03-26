@@ -167,14 +167,17 @@ def sample_generator(forgd_video_dir, backd_video_dir, dataset="train",
             try:
                 if augment_data:
                     forgd_frames = next(select_gen[1])
-                    sample_label = np.zeros([1, len(paths)], dtype=np.uint8)
-                    sample_label[0, 0] = 1
-                    sample_label[0, select_gen[0]] = 1
+                    sample_label = np.zeros(len(paths), dtype=np.uint8)
+                    sample_label[0] = 1
+                    sample_label[select_gen[0]] = 1
                     yield forgd_frames, backd_frames, sample_label
                 else:
                     forgd_frames = next(select_gen[1])
-                    sample_label = np.zeros([1, len(paths)], dtype=np.uint8)
-                    sample_label[0, select_gen[0]] = 1
+                    sample_label = np.zeros(len(paths), dtype=np.uint8)
+                    if select_gen[0] != 0:
+                        sample_label[0] = 1
+                        sample_label[select_gen[0]] = 1
+                    
                     yield forgd_frames, sample_label
             except StopIteration:
                 forgd_gens.remove(select_gen)
@@ -294,8 +297,8 @@ def frames_generator(video_path, frame_size=CNN_FRAME_SIZE,
                             frame_index = 0
                             np_frames = np.array(frames)
                             yield np_frames
-                            samples_by_video += 1
 
+                            samples_by_video += 1
                             if samples_by_video >= max_samples_by_video:
                                 break
 
@@ -339,7 +342,7 @@ if __name__ == "__main__":
                         help='The video height.')
     parser.add_argument('-p', '--fps', type=int, default=FRAMES_BY_SECOND,
                         help='The input video file.')
-    parser.add_argument('-m', '--max_samples_by_video', type=int,
+    parser.add_argument('-m', '--max-samples-by-video', type=int,
                         default=MAX_SAMPLES_BY_VIDEO,
                         help='The input video file.')
 
@@ -371,7 +374,7 @@ if __name__ == "__main__":
             data = next(generator)
             if len(data) == 3:
                 forgd_frames, backd_frames, label = data
-                print(labels[1 + np.argmax(label[:, 1:])])
+                print(labels[1 + np.argmax(label[1:])])
 
                 for i in range(forgd_frames.shape[0]):
                     forgd_frame = forgd_frames[i]

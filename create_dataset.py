@@ -18,15 +18,8 @@ def create_dataset(tfrecord_path, forgd_video_dir, backd_video_dir,
                    height=CNN_VIDEO_HEIGHT, phase="train",
                    fps=FRAMES_BY_SECOND,
                    max_samples_by_video=MAX_SAMPLES_BY_VIDEO):
-    """ Generate a list of all pairs of patches and segmentation maps
-    and save them in the tfrecord file.
-
-    Args:
-        list_directories (list): the image directories.
-        tfrecord_path (str): the path to save the tfrecord file.
-        stride (int): the stride between patches.
-        image_patch_size (int): the patch size.
-        preload_size (int): the number of images loaded and shuffled by batch.
+    """
+    Create tfrecord datasets.
     """
 
     # Create data record.
@@ -35,17 +28,11 @@ def create_dataset(tfrecord_path, forgd_video_dir, backd_video_dir,
     data_record.open(tfrecord_path, mode="w")
 
     # Create generator.
-    if phase == "validation":
-        dataset = phase
-        phase = "train"
-    else:
-        dataset = phase
-
     generator = sample_generator(forgd_video_dir, backd_video_dir,
-                                 dataset=dataset,
+                                 dataset=phase,
                                  split_ratio=split_ratio,
                                  frame_size=frame_size, width=width,
-                                 height=height, phase=phase, fps=fps,
+                                 height=height, fps=fps,
                                  max_samples_by_video=max_samples_by_video)
 
     # Generate samples.

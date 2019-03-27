@@ -49,32 +49,15 @@ if __name__ == "__main__":
     data_record = DataRecord(frame_size, height, width, phase, batch_size)
     data_record.open(tfrecord_path)
 
-    if phase == 'train':
-        t_forgd_frames, t_backd_frames, t_label = data_record.get_next()
-    else:
+    if phase == 'test':
         t_forgd_frames, t_label = data_record.get_next()
+    else:
+        t_forgd_frames, t_backd_frames, t_label = data_record.get_next()
 
     session = tf.Session()
     while True:
         try:
-            if phase == 'train':
-                batch_forgd, batch_backd, batch_labels = session.run(
-                    [t_forgd_frames, t_backd_frames, t_label])
-                batch_forgd, batch_backd, batch_labels
-                forgd_frames = batch_forgd[-1]
-                backd_frames = batch_backd[-1]
-                label = batch_labels[-1]
-                print(labels[1 + np.argmax(label[1:])])
-
-                for i in range(forgd_frames.shape[0]):
-                    forgd_frame = forgd_frames[i]
-                    backd_frame = backd_frames[i]
-                    cv2.imshow('frame',
-                               np.vstack((forgd_frame, backd_frame)))
-                    time.sleep(0.01)
-                    if cv2.waitKey(1) & 0xFF == ord('q'):
-                        break
-            else:
+            if phase == 'test':
                 batch_forgd, batch_labels = session.run(
                     [t_forgd_frames, t_label])
                 forgd_frames = batch_forgd[-1]
@@ -89,6 +72,23 @@ if __name__ == "__main__":
                     forgd_frame = forgd_frames[i]
                     cv2.imshow('frame', forgd_frame)
 
+                    time.sleep(0.01)
+                    if cv2.waitKey(1) & 0xFF == ord('q'):
+                        break
+            else:
+                batch_forgd, batch_backd, batch_labels = session.run(
+                    [t_forgd_frames, t_backd_frames, t_label])
+                batch_forgd, batch_backd, batch_labels
+                forgd_frames = batch_forgd[-1]
+                backd_frames = batch_backd[-1]
+                label = batch_labels[-1]
+                print(labels[1 + np.argmax(label[1:])])
+
+                for i in range(forgd_frames.shape[0]):
+                    forgd_frame = forgd_frames[i]
+                    backd_frame = backd_frames[i]
+                    cv2.imshow('frame',
+                               np.vstack((forgd_frame, backd_frame)))
                     time.sleep(0.01)
                     if cv2.waitKey(1) & 0xFF == ord('q'):
                         break

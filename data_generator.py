@@ -5,6 +5,7 @@ Generate video samples.
 import argparse
 import os
 import random
+import time
 
 import cv2
 import numpy as np
@@ -16,61 +17,6 @@ from config import (BACKD_VIDEO_DIR_PATH, CNN_FRAME_SIZE, CNN_VIDEO_HEIGHT,
 from utils.path_utils import get_files_in_directory
 
 
-def train_generator(forgd_video_dir, backd_video_dir,
-                    split_ratio=TRAIN_TEST_SPLIT_RATIO,
-                    frame_size=CNN_FRAME_SIZE, width=CNN_VIDEO_WIDTH,
-                    height=CNN_VIDEO_HEIGHT, preload_samples=PRELOAD_SAMPLES,
-                    fps=FRAMES_BY_SECOND,
-                    max_samples_by_video=MAX_SAMPLES_BY_VIDEO):
-    """
-    Generate sample from train dataset.
-    """
-
-    return sample_generator(forgd_video_dir, backd_video_dir, dataset="train",
-                            split_ratio=split_ratio, frame_size=frame_size,
-                            width=width, height=height,
-                            preload_samples=preload_samples,
-                            phase="train", fps=fps,
-                            max_samples_by_video=max_samples_by_video)
-
-
-def validation_generator(forgd_video_dir, backd_video_dir,
-                         split_ratio=TRAIN_TEST_SPLIT_RATIO,
-                         frame_size=CNN_FRAME_SIZE, width=CNN_VIDEO_WIDTH,
-                         height=CNN_VIDEO_HEIGHT,
-                         preload_samples=PRELOAD_SAMPLES,
-                         fps=FRAMES_BY_SECOND,
-                         max_samples_by_video=MAX_SAMPLES_BY_VIDEO):
-    """
-    Generate sample from validation dataset.
-    """
-
-    return sample_generator(forgd_video_dir, backd_video_dir,
-                            dataset="validation", split_ratio=split_ratio,
-                            frame_size=frame_size, width=width, height=height,
-                            preload_samples=preload_samples, phase="train",
-                            fps=fps, max_samples_by_video=max_samples_by_video)
-
-
-def test_generator(forgd_video_dir, backd_video_dir,
-                   split_ratio=TRAIN_TEST_SPLIT_RATIO,
-                   frame_size=CNN_FRAME_SIZE, width=CNN_VIDEO_WIDTH,
-                   height=CNN_VIDEO_HEIGHT, preload_samples=PRELOAD_SAMPLES,
-                   fps=FRAMES_BY_SECOND,
-                   max_samples_by_video=MAX_SAMPLES_BY_VIDEO):
-    """
-    Generate sample from test dataset.
-    """
-
-    return sample_generator(forgd_video_dir, backd_video_dir,
-                            dataset="test",
-                            split_ratio=split_ratio, frame_size=frame_size,
-                            width=width, height=height,
-                            preload_samples=preload_samples,
-                            phase="test", fps=fps,
-                            max_samples_by_video=max_samples_by_video)
-
-
 def get_labeled_video(forgd_video_dir, backd_video_dir, dataset="train",
                       split_ratio=TRAIN_TEST_SPLIT_RATIO):
     """
@@ -78,7 +24,7 @@ def get_labeled_video(forgd_video_dir, backd_video_dir, dataset="train",
     """
 
     # Create dataset file lists.
-    labels = ["background"]
+    labels = ["Background"]
     data = []
 
     # Add background videos.
@@ -88,7 +34,12 @@ def get_labeled_video(forgd_video_dir, backd_video_dir, dataset="train",
     if dataset == "train":
         data.append(video_paths[:split_index])
     else:
-        data.append(video_paths[split_index:])
+        split_index_end = int((split_index + len(video_paths)) / 2)
+
+        if dataset == "validation":
+            data.append(video_paths[split_index:split_index_end])
+        else:
+            data.append(video_paths[split_index_end:])
 
     # Add foreground videos.
     labels.extend(get_labels(forgd_video_dir))
@@ -104,7 +55,12 @@ def get_labeled_video(forgd_video_dir, backd_video_dir, dataset="train",
             if dataset == "train":
                 data.append(video_paths[:split_index])
             else:
-                data.append(video_paths[split_index:])
+                split_index_end = int((split_index + len(video_paths)) / 2)
+
+                if dataset == "validation":
+                    data.append(video_paths[split_index:split_index_end])
+                else:
+                    data.append(video_paths[split_index_end:])
 
     return data, labels
 
@@ -113,7 +69,7 @@ def sample_generator(forgd_video_dir, backd_video_dir, dataset="train",
                      split_ratio=TRAIN_TEST_SPLIT_RATIO,
                      frame_size=CNN_FRAME_SIZE, width=CNN_VIDEO_WIDTH,
                      height=CNN_VIDEO_HEIGHT, preload_samples=PRELOAD_SAMPLES,
-                     phase="train", fps=FRAMES_BY_SECOND,
+                     fps=FRAMES_BY_SECOND,
                      max_samples_by_video=MAX_SAMPLES_BY_VIDEO):
     """
     Generate sample from video directory.
@@ -125,7 +81,12 @@ def sample_generator(forgd_video_dir, backd_video_dir, dataset="train",
     labels = []
     backd_gens = []
     forgd_gens = []
-    augment_data = phase == "train"
+
+    if dataset == "test":
+        augment_data = False
+    else:
+        augment_data = True
+
     preload_samples = int(preload_samples / 2)
     count_forgd_gen_labels = dict()
 
@@ -355,14 +316,14 @@ if __name__ == "__main__":
     width = args.width
     train_test_split_ratio = args.train_test_split_ratio
     fps = args.fps
-    labels = ["background"]
+    labels = ["Background"]
     labels.extend(get_labels(forgd_video_dir))
 
     # Create generator.
     generator = sample_generator(forgd_video_dir, backd_video_dir,
                                  split_ratio=train_test_split_ratio,
                                  frame_size=frame_size, width=width,
-                                 height=height, phase="train", fps=fps,
+                                 height=height, dataset="train", fps=fps,
                                  max_samples_by_video=max_samples_by_video)
 
     # Generate samples.
@@ -381,15 +342,25 @@ if __name__ == "__main__":
                     backd_frame = backd_frames[i]
                     cv2.imshow('frame',
                                np.vstack((forgd_frame, backd_frame)))
-                    cv2.waitKey(0)
+
+                    time.sleep(0.01)
+                    if cv2.waitKey(1) & 0xFF == ord('q'):
+                        break
             else:
                 forgd_frames, label = data
-                print(labels[np.argmax(label)])
+
+                if label[0] == 1:
+                    print(labels[1 + np.argmax(label[1:])])
+                else:
+                    print("Background")
 
                 for i in range(forgd_frames.shape[0]):
                     forgd_frame = forgd_frames[i]
                     cv2.imshow('frame', forgd_frame)
-                    cv2.waitKey(0)
+
+                    time.sleep(0.01)
+                    if cv2.waitKey(1) & 0xFF == ord('q'):
+                        break
 
         except StopIteration:
             last_sample = True

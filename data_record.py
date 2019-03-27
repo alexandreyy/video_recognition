@@ -117,14 +117,14 @@ class DataRecord:
 
         self.reader = tf.data.TFRecordDataset(self.tfrecord_path)
 
-        if self.phase == "train":
+        if self.phase == "test":
             features = {
                 'forgd_frames': tf.FixedLenFeature([], tf.string),
-                'backd_frames': tf.FixedLenFeature([], tf.string),
                 'label': tf.FixedLenFeature([], tf.string)}
         else:
             features = {
                 'forgd_frames': tf.FixedLenFeature([], tf.string),
+                'backd_frames': tf.FixedLenFeature([], tf.string),
                 'label': tf.FixedLenFeature([], tf.string)}
 
         def parse_data_train(example):
@@ -165,10 +165,10 @@ class DataRecord:
             label = tf.decode_raw(label, tf.int8)
             return forgd_frames, label
 
-        if self.phase == "train":
-            dataset = self.reader.map(parse_data_train)
-        else:
+        if self.phase == "test":
             dataset = self.reader.map(parse_data_test)
+        else:
+            dataset = self.reader.map(parse_data_train)
 
         dataset = dataset.repeat()
         dataset = dataset.shuffle(100)

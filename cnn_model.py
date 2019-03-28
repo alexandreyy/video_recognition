@@ -356,7 +356,6 @@ class VideoRecognitionCNN:
             print("Initializing train info.")
             train_info = dict()
             train_info["step"] = -1
-            train_info["epoch"] = -1
             train_info["best_test_lost"] = 999999999
 
         return train_info
@@ -419,7 +418,7 @@ class VideoRecognitionCNN:
             self.sess = None
 
     def fit(self, forgd_video_dir, backd_video_dir,
-            model_path="./model/model.ckpt", num_steps=-1, num_epochs=-1,
+            model_path="./model/model.ckpt", num_steps=-1,
             input_size=[CNN_FRAME_SIZE, CNN_VIDEO_HEIGHT, CNN_VIDEO_WIDTH, 3]):
         """
         Fit CNN model.
@@ -460,10 +459,7 @@ class VideoRecognitionCNN:
         test_generator = batch_generator(forgd_video_dir, backd_video_dir,
                                          dataset="test")
 
-        while (train_info["epoch"] < num_epochs or num_epochs == -1) and \
-                (train_info["step"] < num_steps or num_steps == -1):
-            train_info["epoch"] += 1
-
+        while train_info["step"] < num_steps or num_steps == -1:
             # Create train batch generator.
             train_generator = batch_generator(forgd_video_dir, backd_video_dir,
                                               dataset="train")
@@ -502,9 +498,9 @@ class VideoRecognitionCNN:
                                         self.input["input_label"]: labels})
                             train_writer.add_summary(train_loss_s,
                                                      train_info["step"])
-                            print('Epoch %i, step %i: train loss: %f,'
+                            print('Step %i: train loss: %f,'
                                   ' classes loss: %f, action loss: %f'
-                                  % (train_info["epoch"], train_info["step"],
+                                  % (train_info["step"],
                                      loss_train_val, error_classes,
                                      error_action))
 
@@ -554,10 +550,10 @@ class VideoRecognitionCNN:
                         self.saver.save(self.sess, model_path,
                                         global_step=train_info["step"])
 
-                    print('Epoch %i, step %i: validation loss: %f,'
+                    print('Step %i: validation loss: %f,'
                           ' best validation loss: %f, classes loss: %f, '
                           'action loss: %f'
-                          % (train_info["epoch"], train_info["step"],
+                          % (train_info["step"],
                              loss_test_val, train_info["best_test_lost"],
                              np.mean(error_classes_list),
                              np.mean(error_action_list)))

@@ -9,10 +9,12 @@ import re
 import numpy as np
 import tensorflow as tf
 
-from config import (CNN_FRAME_SIZE, CNN_VIDEO_HEIGHT, CNN_VIDEO_WIDTH,
-                    LABEL_SIZE)
+from batch_generator import BatchGenerator
+from config import (BATCH_SIZE, CNN_FRAME_SIZE, CNN_VIDEO_HEIGHT,
+                    CNN_VIDEO_WIDTH, DISPLAY_TEST_LOSS_STEP,
+                    DISPLAY_TRAIN_LOSS_STEP, FORGD_VIDEO_DIR_PATH, LABEL_SIZE,
+                    LEARNING_RATE, MODEL_DIR, NUM_TEST_BATCHES, TFRECORD_PATH)
 from data_generator import get_labels
-from batch_generator import batch_generator
 
 
 class VideoRecognitionCNN:
@@ -142,7 +144,7 @@ class VideoRecognitionCNN:
 
     def maxpool2d(self, x, k=2, c=1):
         """
-        Max pooling.
+        Max pooling 2D.
         """
 
         return tf.nn.max_pool(x, ksize=[1, k, k, c], strides=[1, k, k, c],
@@ -150,7 +152,7 @@ class VideoRecognitionCNN:
 
     def maxpool3d(self, x, t=1, k=2, c=1):
         """
-        Max pooling.
+        Max pooling 3D.
         """
 
         return tf.nn.max_pool3d(x, ksize=[1, t, k, k, c],
@@ -417,21 +419,22 @@ class VideoRecognitionCNN:
             self.sess.close()
             self.sess = None
 
-    def fit(self, forgd_video_dir, backd_video_dir,
-            model_path="./model/model.ckpt", num_steps=-1,
-            input_size=[CNN_FRAME_SIZE, CNN_VIDEO_HEIGHT, CNN_VIDEO_WIDTH, 3]):
+    def fit(self, tfrecord_path=TFRECORD_PATH,
+            model_dir=MODEL_DIR, num_steps=-1,
+            input_size=[CNN_FRAME_SIZE, CNN_VIDEO_HEIGHT, CNN_VIDEO_WIDTH, 3],
+            batch_size=BATCH_SIZE, label_size=LABEL_SIZE,
+            learning_rate=LEARNING_RATE, num_test_batches=NUM_TEST_BATCHES,
+            display_train_loss_step=DISPLAY_TRAIN_LOSS_STEP,
+            display_test_loss_step=DISPLAY_TEST_LOSS_STEP):
         """
         Fit CNN model.
         """
 
-        # Training Parameters.
-        learning_rate = 0.0005
-        num_test_batches = 1
-        display_train_loss_step = 10
-        display_test_loss_step = 100
-        label_size = len(get_labels(forgd_video_dir)) + 1
+        # TODO: Remove this line after defining the right label size.
+        label_size = len(get_labels(FORGD_VIDEO_DIR_PATH)) + 1
 
         # Initialize model paths.
+        model_path = model_dir + "/model.ckpt"
         self.init_model_paths(model_path)
 
         # Initialize model.
@@ -455,134 +458,109 @@ class VideoRecognitionCNN:
         train_info = self.load_train_info()
         self.load_graph()
 
-        # Create test batch generator.
-        test_generator = batch_generator(forgd_video_dir, backd_video_dir,
-                                         dataset="test")
+        # Create batch generators.
+        train_generator = BatchGenerator(
+            "train", self.sess, tfrecord_path, self.input_size[0],
+            self.input_size[1], self.input_size[2], batch_size)
+        test_generator = BatchGenerator(
+            "validation", self.sess, tfrecord_path, self.input_size[0],
+            self.input_size[1], self.input_size[2], batch_size)
 
         while train_info["step"] < num_steps or num_steps == -1:
-            # Create train batch generator.
-            train_generator = batch_generator(forgd_video_dir, backd_video_dir,
-                                              dataset="train")
+            # Get train batch.
+            forgd_samples, backd_samples, labels = train_generator.get_next()
 
-            for forgd_samples, backd_samples, labels in train_generator:
-                train_info["step"] += 1
-                if train_info["step"] > num_steps and num_steps != -1:
-                    break
+            # Run optimization op (backprop) and
+            # cost op (to get loss value).
+            _opt_val, loss_train_val = self.sess.run(
+                [optimizer, loss_function],
+                feed_dict={self.input["input_video"]: forgd_samples,
+                           self.input["input_background_video"]:
+                           backd_samples,
+                           self.input["input_label"]: labels})
 
-                # Run optimization op (backprop) and
-                # cost op (to get loss value).
-                _opt_val, loss_train_val = self.sess.run(
-                    [optimizer, loss_function],
-                    feed_dict={self.input["input_video"]: forgd_samples,
+            display_train_loss = \
+                train_info["step"] % display_train_loss_step == 0
+
+            if display_train_loss:
+                # Display train loss and input/output images.
+                if display_train_loss:
+                    if train_info["step"] % display_train_loss_step == 0:
+                        train_loss_s, error_classes, error_action = \
+                            self.sess.run(
+                                [loss_summary, cross_entropy_classes,
+                                 cross_entropy_action],
+                                feed_dict={
+                                    self.loss: np.mean(loss_train_val),
+                                    self.input["input_video"]:
+                                    forgd_samples,
+                                    self.input["input_background_video"]:
+                                    backd_samples,
+                                    self.input["input_label"]: labels})
+                        train_writer.add_summary(train_loss_s,
+                                                 train_info["step"])
+                        print('Step %i: train loss: %f,'
+                              ' classes loss: %f, action loss: %f'
+                              % (train_info["step"], loss_train_val,
+                                 error_classes, error_action))
+
+                self.save_train_info(train_info)
+                train_writer.flush()
+
+            # Display test loss and input/output images.
+            if train_info["step"] % display_test_loss_step == 0:
+                test_loss_list = []
+                error_classes_list = []
+                error_action_list = []
+
+                batch_index = 0
+                while batch_index < num_test_batches:
+                    forgd_samples, backd_samples, labels = \
+                        test_generator.get_next()
+                    loss_test_val, error_classes, error_action = \
+                        self.sess.run(
+                            [loss_function, cross_entropy_classes,
+                             cross_entropy_action],
+                            feed_dict={
+                                self.input["input_video"]: forgd_samples,
+                                self.input["input_background_video"]:
+                                backd_samples,
+                                self.input["input_label"]: labels})
+                    test_loss_list.append(loss_test_val)
+                    error_classes_list.append(error_classes)
+                    error_action_list.append(error_action)
+                    batch_index += 1
+
+                loss_s, loss_test_val = self.sess.run(
+                    [loss_summary, self.loss],
+                    feed_dict={self.loss: np.mean(test_loss_list),
+                               self.input["input_video"]: forgd_samples,
                                self.input["input_background_video"]:
                                backd_samples,
                                self.input["input_label"]: labels})
 
-                display_train_loss = \
-                    train_info["step"] % display_train_loss_step == 0
+                if loss_test_val < train_info["best_test_lost"]:
+                    train_info["best_test_lost"] = loss_test_val
+                    self.saver.save(self.sess, model_path,
+                                    global_step=train_info["step"])
 
-                if display_train_loss:
-                    # Display train loss and input/output images.
-                    if display_train_loss:
-                        if train_info["step"] % display_train_loss_step == 0:
-                            train_loss_s, error_classes, error_action = \
-                                self.sess.run(
-                                    [loss_summary, cross_entropy_classes,
-                                     cross_entropy_action],
-                                    feed_dict={
-                                        self.loss: np.mean(loss_train_val),
-                                        self.input["input_video"]:
-                                        forgd_samples,
-                                        self.input["input_background_video"]:
-                                        backd_samples,
-                                        self.input["input_label"]: labels})
-                            train_writer.add_summary(train_loss_s,
-                                                     train_info["step"])
-                            print('Step %i: train loss: %f,'
-                                  ' classes loss: %f, action loss: %f'
-                                  % (train_info["step"],
-                                     loss_train_val, error_classes,
-                                     error_action))
+                print('Step %i: validation loss: %f,'
+                      ' best validation loss: %f, classes loss: %f, '
+                      'action loss: %f'
+                      % (train_info["step"],
+                         loss_test_val, train_info["best_test_lost"],
+                         np.mean(error_classes_list),
+                         np.mean(error_action_list)))
+                test_writer.add_summary(loss_s, train_info["step"])
+                test_writer.flush()
+                self.save_train_info(train_info)
 
-                    self.save_train_info(train_info)
-                    train_writer.flush()
-
-                # Display test loss and input/output images.
-                if train_info["step"] % display_test_loss_step == 0:
-                    test_loss_list = []
-                    error_classes_list = []
-                    error_action_list = []
-
-                    batch_index = 0
-                    while batch_index < num_test_batches:
-                        try:
-                            forgd_samples, backd_samples, labels = next(
-                                test_generator)
-                            loss_test_val, error_classes, error_action = \
-                                self.sess.run(
-                                    [loss_function, cross_entropy_classes,
-                                     cross_entropy_action],
-                                    feed_dict={
-                                        self.input["input_video"]:
-                                        forgd_samples,
-                                        self.input["input_background_video"]:
-                                        backd_samples,
-                                        self.input["input_label"]: labels})
-                            test_loss_list.append(loss_test_val)
-                            error_classes_list.append(error_classes)
-                            error_action_list.append(error_action)
-                            batch_index += 1
-                        except Exception as _e:
-                            test_generator = batch_generator(forgd_video_dir,
-                                                             backd_video_dir,
-                                                             dataset="test")
-
-                    loss_s, loss_test_val = self.sess.run(
-                        [loss_summary, self.loss],
-                        feed_dict={self.loss: np.mean(test_loss_list),
-                                   self.input["input_video"]: forgd_samples,
-                                   self.input["input_background_video"]:
-                                   backd_samples,
-                                   self.input["input_label"]: labels})
-
-                    if loss_test_val < train_info["best_test_lost"]:
-                        train_info["best_test_lost"] = loss_test_val
-                        self.saver.save(self.sess, model_path,
-                                        global_step=train_info["step"])
-
-                    print('Step %i: validation loss: %f,'
-                          ' best validation loss: %f, classes loss: %f, '
-                          'action loss: %f'
-                          % (train_info["step"],
-                             loss_test_val, train_info["best_test_lost"],
-                             np.mean(error_classes_list),
-                             np.mean(error_action_list)))
-                    test_writer.add_summary(loss_s, train_info["step"])
-                    test_writer.flush()
-                    self.save_train_info(train_info)
-
+            train_info["step"] += 1
         self.close_session()
 
     def predict(self, X):
         """
-        Predict label.
+        Predict.
         """
-
-        # if len(X.shape) == 2:
-        #     img = np.zeros((1, self.input_size[0], self.input_size[1], 1))
-        #     img[0, :X.shape[0], :X.shape[1], 0] = X
-
-        #     output = self.sess.run(
-        #         self.layers["test"][len(self.layers["test"]) - 1],
-        #         feed_dict={self.input["input_video"]: img})
-        #     tmp = output[0, :X.shape[0], :X.shape[1], 0]
-        #     output = np.zeros(X.shape)
-        #     output[:tmp.shape[0], :tmp.shape[1]] = tmp
-        # else:
-        #     X = X.reshape((-1, self.input_size[0], self.input_size[1], 1))
-        #     output = self.sess.run(
-        #         self.layers["test"][len(self.layers["test"]) - 1],
-        #         feed_dict={self.input["input_video"]: X})
-        #     output = output[:, :, :, 0]
 
         return X

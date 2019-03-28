@@ -18,6 +18,7 @@ RESOURCES_DIR = os.path.dirname(os.path.realpath(__file__)) + "/resources"
 DATASET_DIR_PATH = str(Path.home()) + "/Datasets/UCF101"
 FORGD_VIDEO_DIR_PATH = DATASET_DIR_PATH + "/videos_foreground"
 BACKD_VIDEO_DIR_PATH = DATASET_DIR_PATH + "/videos_background"
+TFRECORD_PATH = RESOURCES_DIR + "/ucf101.tfrecord"
 
 # =============================================================================
 # Data generation parameters.
@@ -36,6 +37,10 @@ MAX_SAMPLES_BY_VIDEO = 4
 # =============================================================================
 # CNN parameters.
 
-MODEL_PATH = RESOURCES_DIR + "/model"
+MODEL_DIR = RESOURCES_DIR + "/model"
 TRAIN_STEPS = -1
 LABEL_SIZE = 103
+LEARNING_RATE = 0.0005
+NUM_TEST_BATCHES = 1
+DISPLAY_TRAIN_LOSS_STEP = 10
+DISPLAY_TEST_LOSS_STEP = 100

@@ -57,6 +57,7 @@ class DataRecord:
         else:
             self.reader = self.get_reader()
             self.iterator = self.reader.make_one_shot_iterator()
+            self.iterator_init = self.iterator.make_initializer(self.reader)
 
     def close(self):
         """
@@ -174,6 +175,13 @@ class DataRecord:
         dataset = dataset.shuffle(100)
         dataset = dataset.batch(self.batch_size)
         return dataset
+
+    def reset(self, session):
+        """
+        Reset data record.
+        """
+
+        session.run(self.iterator_init)
 
     def get_next(self):
         """

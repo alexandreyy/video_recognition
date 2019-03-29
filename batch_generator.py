@@ -10,8 +10,7 @@ import numpy as np
 import tensorflow as tf
 
 from config import (BATCH_SIZE, CNN_FRAME_SIZE, CNN_VIDEO_HEIGHT,
-                    CNN_VIDEO_WIDTH, FORGD_VIDEO_DIR_PATH, RESOURCES_DIR,
-                    TFRECORD_PATH)
+                    CNN_VIDEO_WIDTH, FORGD_VIDEO_DIR_PATH, TFRECORD_PATH)
 from data_generator import get_labels
 from data_record import DataRecord
 
@@ -42,7 +41,12 @@ class BatchGenerator:
         Generate batches.
         """
 
-        return self.session.run(self.next)
+        while True:
+            try:
+                return self.session.run(self.next)
+            except Exception as e:
+                print(str(e))
+                self.data_record.reset(self.session)
 
     def close(self):
         """

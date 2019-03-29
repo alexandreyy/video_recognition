@@ -5,8 +5,7 @@ Train the CNN.
 import argparse
 
 from cnn_model import VideoRecognitionCNN
-from config import (BACKD_VIDEO_DIR_PATH, FORGD_VIDEO_DIR_PATH, MODEL_DIR,
-                    TFRECORD_PATH, TRAIN_STEPS)
+from config import (MODEL_DIR, TFRECORD_PATH, TRAIN_STEPS)
 
 
 if __name__ == '__main__':

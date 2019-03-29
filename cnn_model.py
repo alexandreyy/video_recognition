@@ -12,9 +12,8 @@ import tensorflow as tf
 from batch_generator import BatchGenerator
 from config import (BATCH_SIZE, CNN_FRAME_SIZE, CNN_VIDEO_HEIGHT,
                     CNN_VIDEO_WIDTH, DISPLAY_TEST_LOSS_STEP,
-                    DISPLAY_TRAIN_LOSS_STEP, FORGD_VIDEO_DIR_PATH, LABEL_SIZE,
-                    LEARNING_RATE, MODEL_DIR, NUM_TEST_BATCHES, TFRECORD_PATH)
-from data_generator import get_labels
+                    DISPLAY_TRAIN_LOSS_STEP, LABEL_SIZE, LEARNING_RATE,
+                    MODEL_DIR, NUM_TEST_BATCHES, TFRECORD_PATH)
 
 
 class VideoRecognitionCNN:
@@ -25,7 +24,7 @@ class VideoRecognitionCNN:
     def __init__(self, phase="test"):
         self.sess = None
         self.var = dict()
-        self.phase = "test"
+        self.phase = phase
 
     def build_weight(self, name, w_shape):
         """
@@ -108,6 +107,7 @@ class VideoRecognitionCNN:
         name = name + "_out"
         with tf.variable_scope(name):
             result = tf.nn.relu(conv_2 + previous_layer)
+            result = self.batch_normalization(result)
 
         return result
 
@@ -158,6 +158,22 @@ class VideoRecognitionCNN:
         return tf.nn.max_pool3d(x, ksize=[1, t, k, k, c],
                                 strides=[1, t, k, k, c], padding='SAME')
 
+    def batch_normalization(self, x, epsilon=1e-12):
+        """
+        Normalize batch.
+        """
+
+        x = x / tf.maximum(tf.sqrt(tf.square(x)), epsilon)
+        return x
+
+    def avgpool3d(self, x, t=1, k=2, c=1):
+        """
+        Avg pooling.
+        """
+
+        return tf.nn.avg_pool3d(x, ksize=[1, t, k, k, c],
+                                strides=[1, t, k, k, c], padding='SAME')
+
     def fc(self, name, x, w_shape):
         """
         Fully connected layer.
@@ -202,7 +218,7 @@ class VideoRecognitionCNN:
         if not os.path.exists(self.dir_log_path):
             os.makedirs(self.dir_log_path)
 
-    def model(self, X, dropout=1.0, reuse=False, name="test"):
+    def model(self, X, reuse=False, name="test"):
         """
         CNN model.
         """
@@ -210,7 +226,8 @@ class VideoRecognitionCNN:
         with tf.variable_scope(name, reuse=reuse):
             name = "conv_1"
             with tf.variable_scope(name):
-                conv_1 = self.r2_1d(name, X, [1, 7, 7, self.input_size[3], 64])
+                conv_1 = self.r2_1d(name, X, [1, 7, 7, self.input_size[3], 64],
+                                    down_sampling=True)
 
             name = "conv_2x"
             with tf.variable_scope(name):
@@ -218,22 +235,64 @@ class VideoRecognitionCNN:
                 conv_2x2 = self.resnet_block(name + "2", conv_2x1, 64, 64)
                 conv_2x3 = self.resnet_block(name + "3", conv_2x2, 64, 64)
 
+            name = "conv_3x"
+            with tf.variable_scope(name):
+                conv_3x1 = self.resnet_block(name + "1", conv_2x3, 64, 128,
+                                             down_sampling=True)
+                conv_3x2 = self.resnet_block(name + "2", conv_3x1, 128, 128)
+                conv_3x3 = self.resnet_block(name + "3", conv_3x2, 128, 128)
+                conv_3x4 = self.resnet_block(name + "3", conv_3x3, 128, 128)
+
+            name = "fc_aux"
+            with tf.variable_scope(name):
+                final_avg = self.avgpool3d(conv_3x4, t=1, k=7, c=1)
+                final_avg = tf.reshape(final_avg, [-1, 4096])
+                fc = self.fc(name, final_avg, [4096, self.label_size])
+
+            name = "output_action_aux"
+            with tf.variable_scope(name):
+                logits_output_action_aux = fc[:1]
+
+            name = "output_classes_aux"
+            with tf.variable_scope(name):
+                logits_output_classes_aux = fc[1:]
+
+            name = "conv_4x"
+            with tf.variable_scope(name):
+                conv_4x1 = self.resnet_block(name + "1", conv_3x4, 128, 256,
+                                             down_sampling=True)
+                conv_4x2 = self.resnet_block(name + "2", conv_4x1, 256, 256)
+                conv_4x3 = self.resnet_block(name + "3", conv_4x2, 256, 256)
+                conv_4x4 = self.resnet_block(name + "3", conv_4x3, 256, 256)
+                conv_4x5 = self.resnet_block(name + "3", conv_4x4, 256, 256)
+                conv_4x6 = self.resnet_block(name + "3", conv_4x5, 256, 256)
+
+            name = "conv_5x"
+            with tf.variable_scope(name):
+                conv_5x1 = self.resnet_block(
+                    name + "1", conv_4x6, 256, 512, down_sampling=True)
+                conv_5x2 = self.resnet_block(name + "2", conv_5x1, 512, 512)
+                conv_5x3 = self.resnet_block(name + "3", conv_5x2, 512, 512)
+
             name = "fc"
             with tf.variable_scope(name):
-                conv_2x3 = self.maxpool3d(conv_2x3, t=16, k=16, c=1)
-                conv_2x3 = tf.reshape(conv_2x3, [-1, 896])
-                layer_2_fc = self.fc(name, conv_2x3,
-                                     [896, self.label_size])
+                final_avg = self.avgpool3d(conv_5x3, t=1, k=7, c=1)
+                final_avg = tf.reshape(final_avg, [-1, 1024])
+                fc = self.fc(name, final_avg, [1024, self.label_size])
 
             name = "output_action"
             with tf.variable_scope(name):
-                output_action = tf.nn.sigmoid(layer_2_fc[:1])
+                logits_output_action = fc[:1]
+                output_action = tf.nn.sigmoid(logits_output_action)
 
             name = "output_classes"
             with tf.variable_scope(name):
-                output_classes = tf.nn.softmax(layer_2_fc[1:])
+                logits_output_classes = fc[1:]
+                output_classes = tf.nn.softmax(logits_output_classes)
 
-            return [output_action, output_classes]
+            return [logits_output_action_aux, logits_output_classes_aux,
+                    logits_output_action, logits_output_classes,
+                    output_action, output_classes]
 
     def build_model(self, input_size=[CNN_FRAME_SIZE, CNN_VIDEO_HEIGHT,
                                       CNN_VIDEO_WIDTH, 3],
@@ -244,7 +303,6 @@ class VideoRecognitionCNN:
 
         self.input_size = input_size
         self.label_size = label_size
-        self.dropout = 0.9
         self.weights = dict()
         self.weights_shape = dict()
         self.input = dict()
@@ -269,57 +327,73 @@ class VideoRecognitionCNN:
                         dtype=tf.float32, name="input_label")
 
                     self.layers["train_foreground"] = self.model(
-                        self.input["input_video"], self.dropout,
+                        self.input["input_video"],
                         name="train_foreground")
 
                     self.layers["train_background"] = self.model(
-                        self.input["input_background_video"], self.dropout,
+                        self.input["input_background_video"],
                         reuse=True, name="train_background")
                 else:
                     self.layers["test"] = self.model(self.input["input_video"])
 
-    def build_loss(self, sparse_value=0.01):
+    def build_loss(self):
         """
         Compute loss.
         """
 
-        with tf.variable_scope("cross_entropy_classes"):
+        with tf.variable_scope("cross_entropy_classes_aux"):
             cross_entropy_classes = tf.nn.softmax_cross_entropy_with_logits_v2(
                 logits=self.layers["train_foreground"]
-                [len(self.layers["train_foreground"]) - 1],
+                [len(self.layers["train_foreground"]) - 5],
                 labels=self.input["input_label"][1:])
             cross_entropy_classes = tf.reduce_mean(cross_entropy_classes)
 
-        with tf.variable_scope("cross_entropy_action"):
+        with tf.variable_scope("cross_entropy_action_aux"):
             cross_entropy_action = tf.nn.sigmoid_cross_entropy_with_logits(
                 logits=self.layers["train_foreground"]
-                [len(self.layers["train_foreground"]) - 2],
+                [len(self.layers["train_foreground"]) - 6],
                 labels=self.input["input_label"][:1])
             cross_entropy_action = tf.reduce_mean(cross_entropy_action)
 
             cross_entropy_non_action = \
                 tf.nn.sigmoid_cross_entropy_with_logits(
                     logits=self.layers["train_background"]
-                    [len(self.layers["train_background"]) - 2],
+                    [len(self.layers["train_background"]) - 4],
                     labels=0 * self.input["input_label"][:1])
             cross_entropy_non_action = tf.reduce_mean(cross_entropy_non_action)
             cross_entropy_action = cross_entropy_action + \
                 cross_entropy_non_action
 
-        with tf.variable_scope("sparse_loss"):
-            weight_sum = 0
-            for var_name in self.weights_shape:
-                if 'w' in var_name:
-                    weight_sum += tf.reduce_mean(
-                        tf.square(self.weights[var_name]))
+        loss_aux = cross_entropy_classes + cross_entropy_action
 
-            sparse_loss = sparse_value * weight_sum
+        with tf.variable_scope("cross_entropy_classes"):
+            cross_entropy_classes = tf.nn.softmax_cross_entropy_with_logits_v2(
+                logits=self.layers["train_foreground"]
+                [len(self.layers["train_foreground"]) - 3],
+                labels=self.input["input_label"][1:])
+            cross_entropy_classes = tf.reduce_mean(cross_entropy_classes)
 
-        loss = cross_entropy_classes + cross_entropy_action + sparse_loss
+        with tf.variable_scope("cross_entropy_action"):
+            cross_entropy_action = tf.nn.sigmoid_cross_entropy_with_logits(
+                logits=self.layers["train_foreground"]
+                [len(self.layers["train_foreground"]) - 4],
+                labels=self.input["input_label"][:1])
+            cross_entropy_action = tf.reduce_mean(cross_entropy_action)
+
+            cross_entropy_non_action = \
+                tf.nn.sigmoid_cross_entropy_with_logits(
+                    logits=self.layers["train_background"]
+                    [len(self.layers["train_background"]) - 4],
+                    labels=0 * self.input["input_label"][:1])
+            cross_entropy_non_action = tf.reduce_mean(cross_entropy_non_action)
+            cross_entropy_action = cross_entropy_action + \
+                cross_entropy_non_action
+
+        loss = cross_entropy_classes + cross_entropy_action + loss_aux
 
         return loss, cross_entropy_classes, cross_entropy_action
 
-    def optimizer(self, loss, learning_rate=0.0005):
+    def optimizer(self, loss, learning_rate=LEARNING_RATE):
         """
         CNN Optimizer.
         """
@@ -429,9 +503,6 @@ class VideoRecognitionCNN:
         """
         Fit CNN model.
         """
-
-        # TODO: Remove this line after defining the right label size.
-        label_size = len(get_labels(FORGD_VIDEO_DIR_PATH)) + 1
 
         # Initialize model paths.
         model_path = model_dir + "/model.ckpt"

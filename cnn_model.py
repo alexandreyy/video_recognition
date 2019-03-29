@@ -22,9 +22,10 @@ class VideoRecognitionCNN:
     Video Recognition CNN:.
     """
 
-    def __init__(self):
+    def __init__(self, phase="test"):
         self.sess = None
         self.var = dict()
+        self.phase="test"
 
     def build_weight(self, name, w_shape):
         """
@@ -258,25 +259,25 @@ class VideoRecognitionCNN:
                            self.input_size[2], self.input_size[3]],
                     dtype=tf.float32, name="input_video")
 
-                self.input["input_background_video"] = tf.placeholder(
-                    shape=[None, self.input_size[0], self.input_size[1],
-                           self.input_size[2], self.input_size[3]],
-                    dtype=tf.float32, name="input_background_video")
+                if self.phase == "train":
+                    self.input["input_background_video"] = tf.placeholder(
+                        shape=[None, self.input_size[0], self.input_size[1],
+                            self.input_size[2], self.input_size[3]],
+                        dtype=tf.float32, name="input_background_video")
 
-                self.input["input_label"] = tf.placeholder(
-                    shape=[None, label_size],
-                    dtype=tf.float32, name="input_label")
+                    self.input["input_label"] = tf.placeholder(
+                        shape=[None, label_size],
+                        dtype=tf.float32, name="input_label")
 
-                self.layers["train_foreground"] = self.model(
-                    self.input["input_video"], self.dropout,
-                    name="train_foreground")
+                    self.layers["train_foreground"] = self.model(
+                        self.input["input_video"], self.dropout,
+                        name="train_foreground")
 
-                self.layers["train_background"] = self.model(
-                    self.input["input_background_video"], self.dropout,
-                    reuse=True, name="train_background")
-
-                self.layers["test"] = self.model(self.input["input_video"],
-                                                 reuse=True)
+                    self.layers["train_background"] = self.model(
+                        self.input["input_background_video"], self.dropout,
+                        reuse=True, name="train_background")
+                else:
+                    self.layers["test"] = self.model(self.input["input_video"])
 
     def build_loss(self, sparse_value=0.01):
         """
@@ -436,6 +437,7 @@ class VideoRecognitionCNN:
         # Initialize model paths.
         model_path = model_dir + "/model.ckpt"
         self.init_model_paths(model_path)
+        self.phase="train"
 
         # Initialize model.
         tf.reset_default_graph()

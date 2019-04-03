@@ -8,7 +8,7 @@ import re
 
 import numpy as np
 import tensorflow as tf
-
+from tensorflow.python.client import device_lib
 from batch_generator import BatchGenerator
 from config import (BATCH_SIZE, CNN_FRAME_SIZE, CNN_VIDEO_HEIGHT,
                     CNN_VIDEO_WIDTH, DISPLAY_TEST_LOSS_STEP,
@@ -25,6 +25,14 @@ class VideoRecognitionCNN:
         self.sess = None
         self.var = dict()
         self.phase = phase
+
+    def get_available_gpus(self):
+        """
+        Get device list.
+        """
+
+        local_device_protos = device_lib.list_local_devices()
+        return [x.name for x in local_device_protos if x.device_type == 'GPU']
 
     def build_weight(self, name, w_shape):
         """
@@ -218,81 +226,98 @@ class VideoRecognitionCNN:
         if not os.path.exists(self.dir_log_path):
             os.makedirs(self.dir_log_path)
 
-    def model(self, X, reuse=False, name="test"):
+    def model(self, X, reuse=False, name="test", device=0):
         """
         CNN model.
         """
 
-        with tf.variable_scope(name, reuse=reuse):
-            name = "conv_1"
-            with tf.variable_scope(name):
-                conv_1 = self.r2_1d(name, X, [1, 7, 7, self.input_size[3], 64],
-                                    down_sampling=True)
+        with tf.device('/device:GPU:%d' % device):
+            with tf.variable_scope(name, reuse=reuse):
+                name = "conv_1"
+                with tf.variable_scope(name):
+                    conv_1 = self.r2_1d(name, X, [1, 7, 7, self.input_size[3],
+                                                  64],
+                                        down_sampling=True)
 
-            name = "conv_2x"
-            with tf.variable_scope(name):
-                conv_2x1 = self.resnet_block(name + "1", conv_1, 64, 64)
-                conv_2x2 = self.resnet_block(name + "2", conv_2x1, 64, 64)
-                conv_2x3 = self.resnet_block(name + "3", conv_2x2, 64, 64)
+                name = "conv_2x"
+                with tf.variable_scope(name):
+                    conv_2x1 = self.resnet_block(name + "1", conv_1, 64, 64)
+                    conv_2x2 = self.resnet_block(name + "2", conv_2x1, 64, 64)
+                    conv_2x3 = self.resnet_block(name + "3", conv_2x2, 64, 64)
 
-            name = "conv_3x"
-            with tf.variable_scope(name):
-                conv_3x1 = self.resnet_block(name + "1", conv_2x3, 64, 128,
-                                             down_sampling=True)
-                conv_3x2 = self.resnet_block(name + "2", conv_3x1, 128, 128)
-                conv_3x3 = self.resnet_block(name + "3", conv_3x2, 128, 128)
-                conv_3x4 = self.resnet_block(name + "3", conv_3x3, 128, 128)
+                name = "conv_3x"
+                with tf.variable_scope(name):
+                    conv_3x1 = self.resnet_block(name + "1", conv_2x3, 64, 128,
+                                                 down_sampling=True)
+                    conv_3x2 = self.resnet_block(name + "2", conv_3x1,
+                                                 128, 128)
+                    conv_3x3 = self.resnet_block(name + "3", conv_3x2,
+                                                 128, 128)
+                    conv_3x4 = self.resnet_block(name + "3", conv_3x3,
+                                                 128, 128)
 
-            name = "fc_aux"
-            with tf.variable_scope(name):
-                final_avg = self.avgpool3d(conv_3x4, t=1, k=7, c=1)
-                final_avg = tf.reshape(final_avg, [-1, 4096])
-                fc = self.fc(name, final_avg, [4096, self.label_size])
+                name = "fc_aux"
+                with tf.variable_scope(name):
+                    final_avg = self.avgpool3d(conv_3x4, t=1, k=7, c=1)
+                    final_avg = tf.reshape(final_avg, [-1, 4096])
+                    fc = self.fc(name, final_avg, [4096, self.label_size])
 
-            name = "output_action_aux"
-            with tf.variable_scope(name):
-                logits_output_action_aux = fc[:1]
+                name = "output_action_aux"
+                with tf.variable_scope(name):
+                    logits_output_action_aux = fc[:, :1]
+                    output_action_aux = tf.nn.sigmoid(logits_output_action_aux)
 
-            name = "output_classes_aux"
-            with tf.variable_scope(name):
-                logits_output_classes_aux = fc[1:]
+                name = "output_classes_aux"
+                with tf.variable_scope(name):
+                    logits_output_classes_aux = fc[:, 1:]
+                    output_classes_aux = tf.nn.softmax(
+                        logits_output_classes_aux)
 
-            name = "conv_4x"
-            with tf.variable_scope(name):
-                conv_4x1 = self.resnet_block(name + "1", conv_3x4, 128, 256,
-                                             down_sampling=True)
-                conv_4x2 = self.resnet_block(name + "2", conv_4x1, 256, 256)
-                conv_4x3 = self.resnet_block(name + "3", conv_4x2, 256, 256)
-                conv_4x4 = self.resnet_block(name + "3", conv_4x3, 256, 256)
-                conv_4x5 = self.resnet_block(name + "3", conv_4x4, 256, 256)
-                conv_4x6 = self.resnet_block(name + "3", conv_4x5, 256, 256)
+                name = "conv_4x"
+                with tf.variable_scope(name):
+                    conv_4x1 = self.resnet_block(name + "1", conv_3x4,
+                                                 128, 256,
+                                                 down_sampling=True)
+                    conv_4x2 = self.resnet_block(name + "2", conv_4x1,
+                                                 256, 256)
+                    conv_4x3 = self.resnet_block(name + "3", conv_4x2,
+                                                 256, 256)
+                    conv_4x4 = self.resnet_block(name + "3", conv_4x3,
+                                                 256, 256)
+                    conv_4x5 = self.resnet_block(name + "3", conv_4x4,
+                                                 256, 256)
+                    conv_4x6 = self.resnet_block(name + "3", conv_4x5,
+                                                 256, 256)
 
-            name = "conv_5x"
-            with tf.variable_scope(name):
-                conv_5x1 = self.resnet_block(
-                    name + "1", conv_4x6, 256, 512, down_sampling=True)
-                conv_5x2 = self.resnet_block(name + "2", conv_5x1, 512, 512)
-                conv_5x3 = self.resnet_block(name + "3", conv_5x2, 512, 512)
+                name = "conv_5x"
+                with tf.variable_scope(name):
+                    conv_5x1 = self.resnet_block(
+                        name + "1", conv_4x6, 256, 512, down_sampling=True)
+                    conv_5x2 = self.resnet_block(name + "2", conv_5x1,
+                                                 512, 512)
+                    conv_5x3 = self.resnet_block(name + "3", conv_5x2,
+                                                 512, 512)
 
-            name = "fc"
-            with tf.variable_scope(name):
-                final_avg = self.avgpool3d(conv_5x3, t=1, k=7, c=1)
-                final_avg = tf.reshape(final_avg, [-1, 1024])
-                fc = self.fc(name, final_avg, [1024, self.label_size])
+                name = "fc"
+                with tf.variable_scope(name):
+                    final_avg = self.avgpool3d(conv_5x3, t=1, k=7, c=1)
+                    final_avg = tf.reshape(final_avg, [-1, 1024])
+                    fc = self.fc(name, final_avg, [1024, self.label_size])
 
-            name = "output_action"
-            with tf.variable_scope(name):
-                logits_output_action = fc[:1]
-                output_action = tf.nn.sigmoid(logits_output_action)
+                name = "output_action"
+                with tf.variable_scope(name):
+                    logits_output_action = fc[:, :1]
+                    output_action = tf.nn.sigmoid(logits_output_action)
 
-            name = "output_classes"
-            with tf.variable_scope(name):
-                logits_output_classes = fc[1:]
-                output_classes = tf.nn.softmax(logits_output_classes)
+                name = "output_classes"
+                with tf.variable_scope(name):
+                    logits_output_classes = fc[:, 1:]
+                    output_classes = tf.nn.softmax(logits_output_classes)
 
-            return [logits_output_action_aux, logits_output_classes_aux,
-                    logits_output_action, logits_output_classes,
-                    output_action, output_classes]
+                return [logits_output_action_aux, logits_output_classes_aux,
+                        output_action_aux, output_classes_aux,
+                        logits_output_action, logits_output_classes,
+                        output_action, output_classes]
 
     def build_model(self, input_size=[CNN_FRAME_SIZE, CNN_VIDEO_HEIGHT,
                                       CNN_VIDEO_WIDTH, 3],
@@ -307,6 +332,7 @@ class VideoRecognitionCNN:
         self.weights_shape = dict()
         self.input = dict()
         self.layers = dict()
+        total_gpus = len(self.get_available_gpus())
 
         # Construct model.
         with tf.variable_scope('model'):
@@ -330,13 +356,18 @@ class VideoRecognitionCNN:
                         self.input["input_video"],
                         name="train_foreground")
 
+                    if total_gpus > 1:
+                        device = 1
+                    else:
+                        device = 0
+
                     self.layers["train_background"] = self.model(
                         self.input["input_background_video"],
-                        reuse=True, name="train_background")
+                        reuse=True, name="train_background", device=device)
                 else:
                     self.layers["test"] = self.model(self.input["input_video"])
 
-    def build_loss(self):
+    def build_loss(self, classes_weight_loss=1):
         """
         Compute loss.
         """
@@ -344,52 +375,85 @@ class VideoRecognitionCNN:
         with tf.variable_scope("cross_entropy_classes_aux"):
             cross_entropy_classes = tf.nn.softmax_cross_entropy_with_logits_v2(
                 logits=self.layers["train_foreground"]
-                [len(self.layers["train_foreground"]) - 5],
-                labels=self.input["input_label"][1:])
+                [len(self.layers["train_foreground"]) - 7],
+                labels=self.input["input_label"][:, 1:])
+#             cross_entropy_classes = tf.pow(
+#                 self.layers["train_foreground"]
+#                 [len(self.layers["train_foreground"]) - 5] -
+#                 self.input["input_label"][:, 1:], 2)
             cross_entropy_classes = tf.reduce_mean(cross_entropy_classes)
 
         with tf.variable_scope("cross_entropy_action_aux"):
+            ones = tf.ones([self.batch_size, 1])
             cross_entropy_action = tf.nn.sigmoid_cross_entropy_with_logits(
                 logits=self.layers["train_foreground"]
-                [len(self.layers["train_foreground"]) - 6],
-                labels=self.input["input_label"][:1])
+                [len(self.layers["train_foreground"]) - 8],
+                labels=ones)
+
+#             cross_entropy_action = tf.pow(
+#                 self.layers["train_foreground"]
+#                 [len(self.layers["train_foreground"]) - 6] - 1, 2)
             cross_entropy_action = tf.reduce_mean(cross_entropy_action)
 
+            zeros = tf.zeros([self.batch_size, 1])
             cross_entropy_non_action = \
                 tf.nn.sigmoid_cross_entropy_with_logits(
                     logits=self.layers["train_background"]
-                    [len(self.layers["train_background"]) - 4],
-                    labels=0 * self.input["input_label"][:1])
+                    [len(self.layers["train_background"]) - 8],
+                    labels=zeros)
+#             cross_entropy_non_action = \
+#                 tf.pow(
+#                     self.layers["train_background"]
+#                     [len(self.layers["train_background"]) - 6], 2)
             cross_entropy_non_action = tf.reduce_mean(cross_entropy_non_action)
             cross_entropy_action = cross_entropy_action + \
                 cross_entropy_non_action
 
+#         loss_aux = classes_weight_loss * cross_entropy_classes + \
+#             cross_entropy_action
         loss_aux = cross_entropy_classes + cross_entropy_action
 
         with tf.variable_scope("cross_entropy_classes"):
             cross_entropy_classes = tf.nn.softmax_cross_entropy_with_logits_v2(
                 logits=self.layers["train_foreground"]
                 [len(self.layers["train_foreground"]) - 3],
-                labels=self.input["input_label"][1:])
+                labels=self.input["input_label"][:, 1:])
+#             cross_entropy_classes = tf.pow(
+#                 self.layers["train_foreground"]
+#                 [len(self.layers["train_foreground"]) - 1] -
+#                 self.input["input_label"][:, 1:], 2)
             cross_entropy_classes = tf.reduce_mean(cross_entropy_classes)
 
         with tf.variable_scope("cross_entropy_action"):
+            ones = tf.ones([self.batch_size, 1])
             cross_entropy_action = tf.nn.sigmoid_cross_entropy_with_logits(
                 logits=self.layers["train_foreground"]
                 [len(self.layers["train_foreground"]) - 4],
-                labels=self.input["input_label"][:1])
-            cross_entropy_action = tf.reduce_mean(cross_entropy_action)
+                labels=ones)
 
+#             cross_entropy_action = tf.pow(
+#                 self.layers["train_foreground"]
+#                 [len(self.layers["train_foreground"]) - 2] - 1, 2)
+#             cross_entropy_action = tf.reduce_mean(cross_entropy_action)
+
+            zeros = tf.zeros([self.batch_size, 1])
             cross_entropy_non_action = \
                 tf.nn.sigmoid_cross_entropy_with_logits(
                     logits=self.layers["train_background"]
                     [len(self.layers["train_background"]) - 4],
-                    labels=0 * self.input["input_label"][:1])
+                    labels=zeros)
+#             cross_entropy_non_action = \
+#                 tf.pow(
+#                     self.layers["train_background"]
+#                     [len(self.layers["train_background"]) - 2], 2)
             cross_entropy_non_action = tf.reduce_mean(cross_entropy_non_action)
             cross_entropy_action = cross_entropy_action + \
                 cross_entropy_non_action
 
-        loss = cross_entropy_classes + cross_entropy_action + loss_aux
+#         loss_end = classes_weight_loss * cross_entropy_classes + \
+#             cross_entropy_action
+        loss_end = cross_entropy_classes + cross_entropy_action
+        loss = loss_aux + loss_end
 
         return loss, cross_entropy_classes, cross_entropy_action
 
@@ -508,6 +572,7 @@ class VideoRecognitionCNN:
         model_path = model_dir + "/model.ckpt"
         self.init_model_paths(model_path)
         self.phase = "train"
+        self.batch_size = batch_size
 
         # Initialize model.
         tf.reset_default_graph()

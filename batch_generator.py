@@ -110,7 +110,6 @@ if __name__ == "__main__":
         else:
             batch_forgd, batch_backd, batch_labels = \
                 batch_generator.get_next()
-            batch_forgd, batch_backd, batch_labels
             forgd_frames = batch_forgd[-1]
             backd_frames = batch_backd[-1]
             label = batch_labels[-1]

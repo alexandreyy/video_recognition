@@ -365,7 +365,9 @@ class VideoRecognitionCNN:
                         self.input["input_background_video"],
                         reuse=True, name="train_background", device=device)
                 else:
-                    self.layers["test"] = self.model(self.input["input_video"])
+                    self.layers["test"] = self.model(
+                        self.input["input_video"],
+                        name="train_foreground")
 
     def build_loss(self, classes_weight_loss=1):
         """
@@ -434,7 +436,7 @@ class VideoRecognitionCNN:
 #             cross_entropy_action = tf.pow(
 #                 self.layers["train_foreground"]
 #                 [len(self.layers["train_foreground"]) - 2] - 1, 2)
-#             cross_entropy_action = tf.reduce_mean(cross_entropy_action)
+            cross_entropy_action = tf.reduce_mean(cross_entropy_action)
 
             zeros = tf.zeros([self.batch_size, 1])
             cross_entropy_non_action = \
@@ -569,8 +571,7 @@ class VideoRecognitionCNN:
         """
 
         # Initialize model paths.
-        model_path = model_dir + "/model.ckpt"
-        self.init_model_paths(model_path)
+        self.init_model_paths(model_dir)
         self.phase = "train"
         self.batch_size = batch_size
 
@@ -673,7 +674,7 @@ class VideoRecognitionCNN:
 
                 if loss_test_val < train_info["best_test_lost"]:
                     train_info["best_test_lost"] = loss_test_val
-                    self.saver.save(self.sess, model_path,
+                    self.saver.save(self.sess, model_dir,
                                     global_step=train_info["step"])
 
                 print('Step %i: validation loss: %f,'
@@ -695,4 +696,17 @@ class VideoRecognitionCNN:
         Predict.
         """
 
-        return X
+        if len(X.shape) == 5:
+            action, probs = self.sess.run([self.layers["test"][-2],
+                                           self.layers["test"][-1]],
+                                          feed_dict={
+                                              self.input["input_video"]: X})
+            return action, probs
+        else:
+            X = X.reshape((1,) + X.shape)
+
+            action, probs = self.sess.run([self.layers["test"][-2],
+                                           self.layers["test"][-1]],
+                                          feed_dict={
+                                              self.input["input_video"]: X})
+            return action[0], probs[0]

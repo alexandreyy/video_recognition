@@ -8,6 +8,7 @@ import re
 
 import numpy as np
 import tensorflow as tf
+
 from tensorflow.python.client import device_lib
 from batch_generator import BatchGenerator
 from config import (BATCH_SIZE, CNN_FRAME_SIZE, CNN_VIDEO_HEIGHT,
@@ -69,6 +70,7 @@ class VideoRecognitionCNN:
             conv_1 = self.conv3d(name, x, [1, w_shape[1],
                                            w_shape[2], w_shape[3], m],
                                  strides=strides)
+            conv_1 = self.batch_normalization(conv_1, name + "spatbn_middle")
             conv_1 = tf.nn.relu(conv_1)
 
         name = name + "_2"
@@ -76,6 +78,7 @@ class VideoRecognitionCNN:
             conv_2 = self.conv3d(name, conv_1,
                                  [3, 1, 1, m, w_shape[4]],
                                  strides=[1, 1, 1, m, 1])
+            conv_2 = self.batch_normalization(conv_2, name + "spatbn")
             conv_2 = tf.nn.relu(conv_2)
 
         return conv_2
@@ -92,6 +95,7 @@ class VideoRecognitionCNN:
         with tf.variable_scope(name):
             conv_1 = self.r2_1d(name, x, [3, 3, 3, in_channels, out_channels],
                                 down_sampling=down_sampling)
+            conv_1 = self.batch_normalization(conv_1, name + "spatbn")
             conv_1 = tf.nn.relu(conv_1)
 
         name = name + "_2"
@@ -166,13 +170,13 @@ class VideoRecognitionCNN:
         return tf.nn.max_pool3d(x, ksize=[1, t, k, k, c],
                                 strides=[1, t, k, k, c], padding='SAME')
 
-    def batch_normalization(self, x, epsilon=1e-12):
+    def batch_normalization(self, x, name="", is_training=True):
         """
         Normalize batch.
         """
-
-        x = x / tf.maximum(tf.sqrt(tf.square(x)), epsilon)
-        return x
+        x_norm = tf.keras.layers.BatchNormalization(name=name)(
+            x, training=is_training)
+        return x_norm
 
     def avgpool3d(self, x, t=1, k=2, c=1):
         """
@@ -365,11 +369,10 @@ class VideoRecognitionCNN:
                         self.input["input_background_video"],
                         reuse=True, name="train_background", device=device)
                 else:
-                    self.layers["test"] = self.model(
-                        self.input["input_video"],
-                        name="train_foreground")
+                    self.layers["test"] = self.model(self.input["input_video"])
 
-    def build_loss(self, classes_weight_loss=1):
+#     def build_loss(self, classes_weight_loss=1):
+    def build_loss(self):
         """
         Compute loss.
         """
@@ -571,7 +574,8 @@ class VideoRecognitionCNN:
         """
 
         # Initialize model paths.
-        self.init_model_paths(model_dir)
+        model_path = model_dir + "/model.ckpt"
+        self.init_model_paths(model_path)
         self.phase = "train"
         self.batch_size = batch_size
 
@@ -674,7 +678,7 @@ class VideoRecognitionCNN:
 
                 if loss_test_val < train_info["best_test_lost"]:
                     train_info["best_test_lost"] = loss_test_val
-                    self.saver.save(self.sess, model_dir,
+                    self.saver.save(self.sess, model_path,
                                     global_step=train_info["step"])
 
                 print('Step %i: validation loss: %f,'
@@ -696,17 +700,4 @@ class VideoRecognitionCNN:
         Predict.
         """
 
-        if len(X.shape) == 5:
-            action, probs = self.sess.run([self.layers["test"][-2],
-                                           self.layers["test"][-1]],
-                                          feed_dict={
-                                              self.input["input_video"]: X})
-            return action, probs
-        else:
-            X = X.reshape((1,) + X.shape)
-
-            action, probs = self.sess.run([self.layers["test"][-2],
-                                           self.layers["test"][-1]],
-                                          feed_dict={
-                                              self.input["input_video"]: X})
-            return action[0], probs[0]
+        return X

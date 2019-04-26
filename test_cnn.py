@@ -66,14 +66,14 @@ if __name__ == '__main__':
     forgd_video_dir = args.foreground_video_dir
 
     labels = get_labels(forgd_video_dir)
-    batch_generator = BatchGenerator("train", None, tfrecord_path,
+    batch_generator = BatchGenerator("test", None, tfrecord_path,
                                      frame_size, height,
                                      width, 1)
 
     while True:
-        batch_forgd, batch_backd, batch_labels = \
-            batch_generator.get_next()
-#         batch_forgd, batch_labels = batch_generator.get_next()
+        # batch_forgd, batch_backd, batch_labels = \
+        #     batch_generator.get_next()
+        batch_forgd, batch_labels = batch_generator.get_next()
         action, probs = model.predict(batch_forgd[0])
 
         forgd_frames = batch_forgd[-1]
